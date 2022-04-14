@@ -1,0 +1,22 @@
+[config]
+default_to_workspace = false
+
+[tasks.web_clean]
+script = '''
+rm -rf wwwroot
+'''
+
+[tasks.web_get_deps]
+args = ["install"]
+command = "npm"
+cwd = "website/static"
+
+[tasks.build_website]
+script = '''
+mkdir -p wwwroot
+cp -r website/static/* wwwroot
+'''
+dependencies = ["web_get_deps"]
+
+[tasks.build_web]
+dependencies = ["web_clean", "build_website"]
