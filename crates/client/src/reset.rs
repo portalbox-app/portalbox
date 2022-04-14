@@ -18,6 +18,7 @@ pub async fn reset(reset: Reset, config: Config) -> Result<(), anyhow::Error> {
         crate::cli::ResetCommands::All => {
             let _ = clean_apps(&config.apps_dir()).await?;
             let _ = clean_apps_data(&config.apps_data_dir()).await?;
+            let _ = CredManager::delete(&config).await?;
         }
     }
 
