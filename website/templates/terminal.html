@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>PortalBox - Terminal</title>
+    <link rel="stylesheet" href="/node_modules/xterm/css/xterm.css">
+
+    <style>
+        html,
+        body,
+        #terminal {
+            background: black;
+            height: 100%;
+            width: 100%;
+            padding: 0%;
+            margin: 0%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="terminal"></div>
+
+    <script type="module">
+        import * as xterm from '/node_modules/xterm/lib/xterm.js';
+        import * as xattach from '/node_modules/xterm-addon-attach/lib/xterm-addon-attach.js';
+        import * as xfit from '/node_modules/xterm-addon-fit/lib/xterm-addon-fit.js';
+        const term = new Terminal({
+            windowsMode: true,
+            fontFamily: 'Fira Code, courier-new, courier, monospace'
+        });
+
+        const currentLocation = window.location;
+        
+        let protocol;
+        if (currentLocation.protocol == "http:") {
+            protocol = "ws"
+        } else {
+            protocol = "wss"
+        }
+
+        const wsUrl = protocol + "://" + currentLocation.host + "/api/term-ws";
+
+        const socket = new WebSocket(wsUrl);
+        socket.onopen = ev => {
+            const attachAddon = new AttachAddon.AttachAddon(socket);
+            const fitAddon = new FitAddon.FitAddon();
+
+            term.loadAddon(attachAddon);
+            term.loadAddon(fitAddon);
+
+            term.onResize(size => {
+                const mess = "__portalbox_term_cmd_resize:" + String(size.cols) + "x" + String(size.rows);
+                socket.send(mess);
+            })
+
+            function handleWindowResize() {
+                fitAddon.fit();
+                term.scrollToBottom();
+            }
+
+            window.onresize = handleWindowResize;
+
+            term.open(document.getElementById('terminal'));
+            fitAddon.fit();
+        };
+    </script>
+</body>
+
+</html>

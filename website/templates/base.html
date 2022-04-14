@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-100">
+
+<head>
+    {% block head %}
+    {% include "partials/default_header.html" %}
+    <title>{% block title %}PortalBox - Access Your Dev Box Anywhere!{% endblock title %}{% block pagetitle %}{%
+        endblock pagetitle %}
+    </title>
+    {% endblock head %}
+
+    {% block additional_headers %}
+    {% endblock additional_headers %}
+</head>
+
+<body class="h-full">
+
+    {% block content %}
+
+    {% endblock content %}
+
+</body>
+
+</html>

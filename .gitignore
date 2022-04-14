@@ -1,0 +1,4 @@
+/target
+/wwwroot
+.env
+**/node_modules

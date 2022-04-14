@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+
+<div class="min-h-full">
+    {% include "partials/side_bar.html" %}
+
+    <div class="lg:pl-64 flex flex-col flex-1">
+        <div class="relative z-10 flex-shrink-0 flex h-16 border-b border-gray-200 lg:border-none">
+            <button type="button"
+                class="px-4 border-r border-gray-200 text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500 lg:hidden">
+                <span class="sr-only">Open sidebar</span>
+                <!-- Heroicon name: outline/menu-alt-1 -->
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+                </svg>
+            </button>
+        </div>
+        <main class="flex-1 pb-8">
+            <!-- Page header -->
+
+            <div class="mt-8">
+                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="pb-5 border-b border-gray-200 sm:flex sm:items-center sm:justify-between">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Services</h3>
+                        <div class="mt-3 sm:mt-0 sm:ml-4">
+                            <button type="button"
+                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500">Add
+                                New Service</button>
+                        </div>
+                    </div>
+
+
+                    <!-- <h2 class="text-lg leading-6 font-medium text-gray-900"></h2> -->
+                    <div class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+                        {% for service in services %}
+                        <a href="{{service.url}}" target="_blank">
+                            <div class="bg-white hover:bg-gray-50 overflow-hidden shadow rounded-lg">
+                                <div class="p-5">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0">
+                                            <img class="h-16 w-16" src="{{service.icon_url}}" alt="{{service.name}}">
+                                        </div>
+                                        <div class="ml-5 w-0 flex-1">
+                                            <div class="text-lg font-medium text-gray-900">{{service.name}}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</div>
+
+{% endblock content %}
