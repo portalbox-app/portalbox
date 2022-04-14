@@ -2,9 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-/// A fictional versioning CLI
 #[derive(Debug, Parser)]
-#[clap(about = "The PortalBox CLI", long_about = None)]
+#[clap(about = "The PortalBox Client", long_about = None)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
