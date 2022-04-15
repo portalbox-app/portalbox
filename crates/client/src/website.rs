@@ -28,7 +28,6 @@ pub fn routes() -> Router {
         .route("/privacy", get(handle_privacy))
         .route("/terms", get(handle_terms))
         .route("/contact", get(handle_contact))
-        .route("/sysinfo", get(handle_sysinfo))
         .route("/about", get(handle_about))
 }
 
@@ -215,9 +214,9 @@ async fn handle_contact(
     render_content_page(content, env)
 }
 
-async fn handle_sysinfo(
-    Extension(env): Extension<Environment>,
-) -> Result<Html<String>, ServerError> {
+#[tracing::instrument(skip(env))]
+async fn handle_about(Extension(env): Extension<Environment>) -> Result<Html<String>, ServerError> {
+    let version = crate::version::VERSION;
     let system = System::new_all();
 
     let system_info = SystemInfo::from_system(&system);
@@ -225,20 +224,10 @@ async fn handle_sysinfo(
 
     let render = {
         let mut context = Context::new();
+        context.insert("version", version);
         context.insert("system_info", &system_info);
         context.insert("mem_info", &mem_info);
 
-        env.tera.render("sysinfo.html", &context)?
-    };
-    Ok(Html(render))
-}
-
-#[tracing::instrument(skip(env))]
-async fn handle_about(Extension(env): Extension<Environment>) -> Result<Html<String>, ServerError> {
-    let version = crate::version::VERSION;
-    let render = {
-        let mut context = Context::new();
-        context.insert("version", version);
         env.tera.render("about.html", &context)?
     };
     Ok(Html(render))
