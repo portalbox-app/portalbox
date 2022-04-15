@@ -11,7 +11,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use models::{SignIn, SignInResult};
+use models::{Contact, SignIn, SignInResult};
 use pulldown_cmark::{html, Parser};
 use serde::Serialize;
 use sysinfo::{System, SystemExt};
@@ -28,6 +28,7 @@ pub fn routes() -> Router {
         .route("/privacy", get(handle_privacy))
         .route("/terms", get(handle_terms))
         .route("/contact", get(handle_contact))
+        .route("/contact", post(handle_post_contact))
         .route("/about", get(handle_about))
 }
 
@@ -209,9 +210,23 @@ async fn handle_terms(Extension(env): Extension<Environment>) -> Result<Html<Str
 async fn handle_contact(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
-    let content = get_markdown_content("contact", env.clone()).await?;
+    let render = {
+        let context = Context::new();
+        env.tera.render("contact.html", &context)?
+    };
+    Ok(Html(render))
+}
 
-    render_content_page(content, env)
+async fn handle_post_contact(
+    Extension(env): Extension<Environment>,
+    Form(form): Form<Contact>,
+) -> Result<Html<String>, ServerError> {
+    let render = {
+        let context = Context::new();
+
+        env.tera.render("contact_post.html", &context)?
+    };
+    Ok(Html(render))
 }
 
 #[tracing::instrument(skip(env))]

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+<div class="min-h-full">
+    {% include "partials/side_bar.html" %}
+
+    <div class="lg:pl-64 flex flex-col flex-1">
+        <div class="relative z-10 flex-shrink-0 flex h-16 border-b border-gray-200 lg:border-none">
+            <button type="button"
+                class="px-4 border-r border-gray-200 text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500 lg:hidden">
+                <span class="sr-only">Open sidebar</span>
+                <!-- Heroicon name: outline/menu-alt-1 -->
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+                </svg>
+            </button>
+        </div>
+        <main class="flex-1 pb-8">
+            <!-- Page header -->
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 py-8 bg-white">
+                <div class="rounded-md bg-blue-50 p-4 mx-8">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <!-- Heroicon name: solid/information-circle -->
+                            <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                                fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3 flex-1 md:flex md:justify-between">
+                            <p class="text-sm text-blue-700">Thank you for contacting us, we'll get back to you as soon
+                                as
+                                possible!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+        </main>
+    </div>
+</div>
+
+
+{% endblock content %}

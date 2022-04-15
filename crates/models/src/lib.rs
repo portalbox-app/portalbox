@@ -70,6 +70,18 @@ pub struct SignIn {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct Contact {
+    #[serde(default, rename = "first-name")]
+    pub first_name: String,
+    #[serde(default, rename = "last-name")]
+    pub last_name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub subject: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceRequest {
     pub base_hostname: String,
     pub service_name: String,
