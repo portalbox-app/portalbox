@@ -29,6 +29,8 @@ pub fn routes() -> Router {
         .route("/terms", get(handle_terms))
         .route("/contact", get(handle_contact))
         .route("/contact", post(handle_post_contact))
+        .route("/services/new", get(handle_new_service))
+        .route("/services/new", post(handle_post_new_service))
         .route("/about", get(handle_about))
 }
 
@@ -206,7 +208,6 @@ async fn handle_terms(Extension(env): Extension<Environment>) -> Result<Html<Str
     render_content_page(content, env)
 }
 
-#[tracing::instrument(skip(env))]
 async fn handle_contact(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
@@ -225,6 +226,28 @@ async fn handle_post_contact(
         let context = Context::new();
 
         env.tera.render("contact_post.html", &context)?
+    };
+    Ok(Html(render))
+}
+
+async fn handle_new_service(
+    Extension(env): Extension<Environment>,
+) -> Result<Html<String>, ServerError> {
+    let render = {
+        let context = Context::new();
+        env.tera.render("new_service.html", &context)?
+    };
+    Ok(Html(render))
+}
+
+async fn handle_post_new_service(
+    Extension(env): Extension<Environment>,
+    Form(form): Form<Contact>,
+) -> Result<Html<String>, ServerError> {
+    let render = {
+        let context = Context::new();
+
+        env.tera.render("new_service_post.html", &context)?
     };
     Ok(Html(render))
 }

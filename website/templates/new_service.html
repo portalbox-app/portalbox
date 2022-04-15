@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+<div class="min-h-full">
+    {% include "partials/side_bar.html" %}
+
+    <div class="lg:pl-64 flex flex-col flex-1">
+        <div class="relative z-10 flex-shrink-0 flex h-16 border-b border-gray-200 lg:border-none">
+            <button type="button"
+                class="px-4 border-r border-gray-200 text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500 lg:hidden">
+                <span class="sr-only">Open sidebar</span>
+                <!-- Heroicon name: outline/menu-alt-1 -->
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+                </svg>
+            </button>
+        </div>
+        <main class="flex-1 pb-8">
+            <!-- Page header -->
+            <!-- This example requires Tailwind CSS v2.0+ -->
+            <!-- Contact section -->
+            <section class="relative bg-white" aria-labelledby="contact-heading">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="grid grid-cols-1 lg:grid-cols-3">
+                        <!-- Contact form -->
+                        <div class="py-10 px-6 sm:px-10 lg:col-span-2 xl:p-12">
+                            <h3 class="text-lg font-medium text-warm-gray-900">Create New Service</h3>
+                            <form method="POST" class="mt-6 grid grid-cols-1 gap-y-6 sm:gap-x-8">
+                                <div class="pt-8 space-y-6 sm:pt-10 sm:space-y-5">
+                                    <div class="space-y-6 sm:space-y-5">
+                                        <div class="sm:grid sm:grid-cols-3 sm:gap-4 sm:items-start sm:pt-5">
+                                            <label for="service-name"
+                                                class="block text-sm font-medium text-gray-700 sm:mt-px sm:pt-2">
+                                                Service Name </label>
+                                            <div class="mt-1 sm:mt-0 sm:col-span-2">
+                                                <input type="text" name="service-name" id="service-name"
+                                                    class="max-w-lg block w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:max-w-xs sm:text-sm border-gray-300 rounded-md">
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            class="sm:grid sm:grid-cols-3 sm:gap-4 sm:items-start sm:border-t sm:border-gray-200 sm:pt-5">
+                                            <label for="address"
+                                                class="block text-sm font-medium text-gray-700 sm:mt-px sm:pt-2">
+                                                Address </label>
+                                            <div class="mt-1 sm:mt-0 sm:col-span-2">
+                                                <input type="text" name="address" id="address"
+                                                    autocomplete="family-name"
+                                                    class="max-w-lg block w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:max-w-xs sm:text-sm border-gray-300 rounded-md">
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                                <div class="sm:col-span-2 sm:flex sm:justify-end">
+                                    <button type="submit"
+                                        class="mt-2 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-teal-500 hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:w-auto">Submit</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+
+{% endblock content %}
