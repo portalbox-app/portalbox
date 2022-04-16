@@ -10,7 +10,9 @@ use dotenv::dotenv;
 use models::AppsResult;
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::Arc;
 use tera::Tera;
+use tokio::sync::Mutex;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use uuid::Uuid;
 
@@ -107,6 +109,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     let env = Environment {
         config: config.clone(),
         tera,
+        signed_in_base_hostname: Arc::new(Mutex::new(None)),
         connect_service_request_sender,
     };
 
@@ -292,6 +295,7 @@ async fn fetch_or_update_apps(
 pub struct Environment {
     config: Config,
     tera: Tera,
+    signed_in_base_hostname: Arc<Mutex<Option<String>>>,
     connect_service_request_sender: tokio::sync::mpsc::Sender<ConnectServiceRequest>,
 }
 

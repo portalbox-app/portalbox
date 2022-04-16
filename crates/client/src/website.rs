@@ -67,9 +67,19 @@ async fn handle_index(
         icon_url: "/terminal_icon.png".to_string(),
     };
     let services = vec![vscode, terminal];
+
+    let signed_in_home_url = {
+        let guard = env.signed_in_base_hostname.lock().await;
+        if let Some(base_hostname) = &*guard {
+            Some(format!("http://{}-home.portalbox.app", base_hostname))
+        } else {
+            None
+        }
+    };
     let render = {
         let mut context = Context::new();
         context.insert("services", &services);
+        context.insert("signed_in_home_url", &signed_in_home_url);
         env.tera.render("index.html", &context)?
     };
     Ok(Html(render))
@@ -144,6 +154,9 @@ pub async fn start_all_service(
         ([127, 0, 0, 1], env.config.vscode_port).into(),
     )
     .await?;
+
+    let mut signed_in_base_hostname = env.signed_in_base_hostname.lock().await;
+    *signed_in_base_hostname = Some(credential.base_hostname.clone());
 
     Ok(())
 }
