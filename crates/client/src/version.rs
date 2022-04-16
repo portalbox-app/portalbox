@@ -24,7 +24,7 @@ async fn get_latest_version(
     current_version: Version,
     config: &Config,
 ) -> Result<Version, anyhow::Error> {
-    let url = format!("{}/api/client-version", config.server_url());
+    let url = config.server_url_with_path("api/client-version");
 
     let request_form = models::ClientVersionRequest { current_version };
 

@@ -115,7 +115,7 @@ async fn run_proxy_connection(
         }
     };
 
-    // Wait for the "StartData" message
+    // Wait for data to start flowing
     let mut init_buf = [0u8; 1024];
     let read = proxy_stream.read(&mut init_buf).await;
 

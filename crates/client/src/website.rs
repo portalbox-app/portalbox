@@ -101,8 +101,7 @@ async fn handle_post_signin(
 ) -> Result<Redirect, ServerError> {
     tracing::info!(?form, "handle signin");
 
-    let server_url = env.config.server_url();
-    let url = format!("{server_url}/api/signin");
+    let url = env.config.server_url_with_path("api/signin");
 
     let client = reqwest::Client::new();
 
@@ -125,7 +124,7 @@ async fn handle_post_signin(
         let mut cred_manager = CredManager::load(&env.config).await.unwrap_or_default();
         cred_manager
             .credentials
-            .insert(env.config.server_url(), credential);
+            .insert(env.config.server_url().into(), credential);
 
         let _ = cred_manager.save(&env.config).await;
     }
@@ -170,7 +169,7 @@ async fn request_and_start_service(
 ) -> Result<(), anyhow::Error> {
     tracing::info!(?base_hostname, ?service_name, "Requesting service");
 
-    let url = format!("{}/api/services", env.config.server_url());
+    let url = env.config.server_url_with_path("api/services");
 
     let service_form = models::ServiceRequest {
         base_hostname: base_hostname.to_string(),

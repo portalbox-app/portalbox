@@ -124,7 +124,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         }
     };
 
-    if let Some(credential) = credentials.credentials.get(&config.server_url()) {
+    if let Some(credential) = credentials.credentials.get(config.server_url().as_str()) {
         tracing::info!(server_url = ?config.server_url(), "Signing in...");
         if let Err(e) = website::start_all_service(credential, &env).await {
             tracing::error!(?e, "Error signing in");
@@ -224,7 +224,7 @@ async fn fetch_or_update_apps(
     current_vscode_version: Option<semver::Version>,
 ) -> Result<AppsResult, anyhow::Error> {
     let os_arch = models::get_os_arch();
-    let url = format!("{}/api/apps", config.server_url());
+    let url = config.server_url_with_path("api/apps");
     tracing::info!(?os_arch, "Getting apps");
 
     let apps_request = models::AppsRequest { os_arch };

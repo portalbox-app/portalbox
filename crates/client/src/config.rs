@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use config::{ConfigError, Environment, File};
 use serde::Deserialize;
+use url::Url;
 
 pub(crate) const PORTALBOX_DIR: &str = ".portalbox";
 const CONFIG_FILE: &str = "config.toml";
@@ -9,10 +10,8 @@ const CONFIG_FILE: &str = "config.toml";
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub server_protocol: String,
-    pub server_domain_name: String,
+    pub server_url: Url,
     pub server_proxy_port: u16,
-    pub server_web_port: u16,
     pub local_home_service_port: u16,
     pub vscode_port: u16,
     // Configurable, default to local data dir/PORTALBOX_DIR
@@ -30,10 +29,8 @@ impl Default for Config {
         };
 
         Self {
-            server_protocol: "https".to_string(),
-            server_domain_name: "www.portalbox.app".to_string(),
+            server_url: Url::parse("https://www.portalbox.app").unwrap(),
             server_proxy_port: 46637,
-            server_web_port: 443,
             local_home_service_port: 3030,
             vscode_port: 3000,
             home_dir: default_home_dir,
@@ -64,21 +61,20 @@ impl Config {
     }
 
     pub fn server_proxy_url(&self) -> String {
-        let domain_name = &self.server_domain_name;
+        let host = self.server_url.host().unwrap();
         let port = self.server_proxy_port;
-        format!("{domain_name}:{port}")
+
+        format!("{host}:{port}")
     }
 
-    pub fn server_url(&self) -> String {
-        let protocol = &self.server_protocol;
-        let domain_name = &self.server_domain_name;
-        let port = self.server_web_port;
+    pub fn server_url(&self) -> Url {
+        self.server_url.clone()
+    }
 
-        if port == 443 {
-            format!("{protocol}://{domain_name}")
-        } else {
-            format!("{protocol}://{domain_name}:{port}")
-        }
+    pub fn server_url_with_path(&self, path: &str) -> Url {
+        let mut ret = self.server_url();
+        ret.set_path(path);
+        ret
     }
 
     pub fn apps_dir(&self) -> PathBuf {
@@ -107,5 +103,33 @@ impl Config {
         let _ = tokio::fs::create_dir_all(apps_data_dir).await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_server_uris() {
+        let config = Config::default();
+        assert_eq!(config.server_url().as_str(), "https://www.portalbox.app/");
+        assert_eq!(config.server_proxy_url(), "www.portalbox.app:46637");
+        assert_eq!(
+            config.server_url_with_path("api").as_str(),
+            "https://www.portalbox.app/api"
+        );
+
+        let config = Config {
+            server_url: Url::parse("http://localhost:8080").unwrap(),
+            ..Default::default()
+        };
+
+        assert_eq!(config.server_url().as_str(), "http://localhost:8080/");
+        assert_eq!(config.server_proxy_url(), "localhost:46637");
+        assert_eq!(
+            config.server_url_with_path("api/services").as_str(),
+            "http://localhost:8080/api/services"
+        );
     }
 }
