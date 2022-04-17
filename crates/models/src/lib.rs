@@ -11,10 +11,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GrantTokenResp {
-    pub access_token: SecretToken,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub access_token: SecretString,
     pub token_type: String,
     pub expires_in: i64,
-    pub refresh_token: SecretToken,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub refresh_token: SecretString,
     pub user: User,
 }
 
