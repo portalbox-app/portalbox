@@ -6,8 +6,16 @@ use uuid::Uuid;
 pub struct Token(Uuid);
 
 impl Token {
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
+    }
+
+    pub fn as_uuid(&self) -> &Uuid {
+        &self.0
     }
 }
 
