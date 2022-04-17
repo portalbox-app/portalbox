@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use secrecy::SecretString;
+use models::secrets::SecretToken;
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
@@ -45,13 +45,12 @@ impl CredManager {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Credential {
     pub email: String,
-    #[serde(serialize_with = "models::serialize_secret_string")]
-    pub client_access_token: SecretString,
+    pub client_access_token: SecretToken,
     pub base_hostname: String,
 }
 
 impl Credential {
-    pub fn new(email: String, client_access_token: SecretString, base_hostname: String) -> Self {
+    pub fn new(email: String, client_access_token: SecretToken, base_hostname: String) -> Self {
         Self {
             email,
             client_access_token,

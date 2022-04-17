@@ -1,6 +1,8 @@
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::ExposeSecret;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use uuid::Uuid;
+
+use crate::secrets::SecretToken;
 
 #[derive(Debug)]
 pub struct ProxyConnectionHelloFixed {
@@ -15,7 +17,7 @@ pub enum ProxyConnectionAckMessage {
 }
 
 pub async fn write_hello_message<S: AsyncWrite + Unpin>(
-    inner_auth_token: SecretString,
+    inner_auth_token: SecretToken,
     host_name: &str,
     stream: &mut S,
 ) -> Result<(), anyhow::Error> {

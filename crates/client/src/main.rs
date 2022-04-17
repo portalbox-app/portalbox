@@ -7,8 +7,7 @@ use crate::{
 use axum::{error_handling::HandleError, extract::Extension, http::StatusCode, Router};
 use clap::StructOpt;
 use dotenv::dotenv;
-use models::AppsResult;
-use secrecy::SecretString;
+use models::{secrets::SecretToken, AppsResult};
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
@@ -301,8 +300,7 @@ pub struct Environment {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConnectServiceRequest {
-    #[serde(serialize_with = "models::serialize_secret_string")]
-    pub portalbox_inner_token: SecretString,
+    pub portalbox_inner_token: SecretToken,
     pub hostname: String,
     pub local_service_name: String,
     pub local_service_address: SocketAddr,

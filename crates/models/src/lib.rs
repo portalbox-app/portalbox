@@ -1,20 +1,20 @@
 pub mod protocol;
+pub mod secrets;
 
 use std::path::PathBuf;
 
 use secrecy::{ExposeSecret, SecretString};
+use secrets::SecretToken;
 use semver::Version;
 use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GrantTokenResp {
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub access_token: SecretString,
+    pub access_token: SecretToken,
     pub token_type: String,
     pub expires_in: i64,
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub refresh_token: SecretString,
+    pub refresh_token: SecretToken,
     pub user: User,
 }
 
@@ -97,22 +97,19 @@ pub struct Contact {
 pub struct ServiceRequest {
     pub base_hostname: String,
     pub service_name: String,
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub client_access_token: SecretString,
+    pub client_access_token: SecretToken,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceApproval {
     pub hostname: String,
     pub service_name: String,
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub service_access_token: SecretString,
+    pub service_access_token: SecretToken,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SignInResult {
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub client_access_token: SecretString,
+    pub client_access_token: SecretToken,
     pub base_hostname: String,
 }
 
