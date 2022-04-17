@@ -1,3 +1,4 @@
+use secrecy::{ExposeSecret, SecretString};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use uuid::Uuid;
 
@@ -6,7 +7,6 @@ pub struct ProxyConnectionHelloFixed {
     pub version: u16,
     pub inner_auth_token: Uuid,
     pub host_len: u16,
-    // pub host_name: Vec<u8>,
 }
 
 pub enum ProxyConnectionAckMessage {
@@ -15,11 +15,11 @@ pub enum ProxyConnectionAckMessage {
 }
 
 pub async fn write_hello_message<S: AsyncWrite + Unpin>(
-    inner_auth_token: Uuid,
+    inner_auth_token: SecretString,
     host_name: &str,
     stream: &mut S,
 ) -> Result<(), anyhow::Error> {
-    let auth_token = inner_auth_token.as_bytes();
+    let auth_token = inner_auth_token.expose_secret().as_bytes();
 
     let version = 1u16;
     let version_bytes = version.to_be_bytes();

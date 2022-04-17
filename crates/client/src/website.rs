@@ -13,11 +13,11 @@ use axum::{
 };
 use models::{Contact, SignIn, SignInResult};
 use pulldown_cmark::{html, Parser};
+use secrecy::SecretString;
 use serde::Serialize;
 use sysinfo::{System, SystemExt};
 use tera::Context;
 use tokio::{fs::File, io::AsyncReadExt};
-use uuid::Uuid;
 
 pub fn routes() -> Router {
     Router::new()
@@ -140,7 +140,7 @@ pub async fn start_all_service(
         &env,
         &credential.base_hostname,
         "home",
-        credential.client_access_token,
+        credential.client_access_token.clone(),
         ([127, 0, 0, 1], env.config.local_home_service_port).into(),
     )
     .await?;
@@ -149,7 +149,7 @@ pub async fn start_all_service(
         &env,
         &credential.base_hostname,
         "vscode",
-        credential.client_access_token,
+        credential.client_access_token.clone(),
         ([127, 0, 0, 1], env.config.vscode_port).into(),
     )
     .await?;
@@ -164,7 +164,7 @@ async fn request_and_start_service(
     env: &Environment,
     base_hostname: &str,
     service_name: &str,
-    client_access_token: Uuid,
+    client_access_token: SecretString,
     local_service_address: SocketAddr,
 ) -> Result<(), anyhow::Error> {
     tracing::info!(?base_hostname, ?service_name, "Requesting service");
@@ -232,7 +232,7 @@ async fn handle_contact(
 
 async fn handle_post_contact(
     Extension(env): Extension<Environment>,
-    Form(form): Form<Contact>,
+    Form(_form): Form<Contact>,
 ) -> Result<Html<String>, ServerError> {
     let render = {
         let context = Context::new();
@@ -254,7 +254,7 @@ async fn handle_new_service(
 
 async fn handle_post_new_service(
     Extension(env): Extension<Environment>,
-    Form(form): Form<Contact>,
+    Form(_form): Form<Contact>,
 ) -> Result<Html<String>, ServerError> {
     let render = {
         let context = Context::new();

@@ -161,7 +161,8 @@ async fn get_ready_connection(
     let _ = models::protocol::write_hello_message(
         service_context
             .connect_service_request
-            .portalbox_inner_token,
+            .portalbox_inner_token
+            .clone(),
         &service_context.connect_service_request.hostname,
         &mut tls_stream,
     )

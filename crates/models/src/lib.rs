@@ -2,16 +2,19 @@ pub mod protocol;
 
 use std::path::PathBuf;
 
+use secrecy::{ExposeSecret, SecretString};
 use semver::Version;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GrantTokenResp {
-    pub access_token: String,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub access_token: SecretString,
     pub token_type: String,
     pub expires_in: i64,
-    pub refresh_token: String,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub refresh_token: SecretString,
     pub user: User,
 }
 
@@ -64,9 +67,18 @@ pub struct UserData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SignIn {
     pub email: String,
-    pub password: String,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub password: SecretString,
     #[serde(default, rename = "remember-me")]
     pub remember_me: bool,
+}
+
+pub fn serialize_secret_string<S>(value: &SecretString, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s_val = value.expose_secret();
+    s.serialize_str(s_val.as_str())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,19 +97,22 @@ pub struct Contact {
 pub struct ServiceRequest {
     pub base_hostname: String,
     pub service_name: String,
-    pub client_access_token: Uuid,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub client_access_token: SecretString,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceApproval {
     pub hostname: String,
     pub service_name: String,
-    pub service_access_token: Uuid,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub service_access_token: SecretString,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SignInResult {
-    pub client_access_token: Uuid,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub client_access_token: SecretString,
     pub base_hostname: String,
 }
 

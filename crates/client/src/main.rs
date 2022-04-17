@@ -8,13 +8,13 @@ use axum::{error_handling::HandleError, extract::Extension, http::StatusCode, Ro
 use clap::StructOpt;
 use dotenv::dotenv;
 use models::AppsResult;
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use tera::Tera;
 use tokio::sync::Mutex;
 use tower_http::{services::ServeDir, trace::TraceLayer};
-use uuid::Uuid;
 
 mod api;
 mod cli;
@@ -148,14 +148,14 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     };
 
     let proxy_client_fut = async move {
-        let server_details = config_1.server_proxy_url();
-        tracing::info!(?server_details, "server details");
-        let server: Vec<_> = server_details
+        let server_proxy_url = config_1.server_proxy_url();
+        tracing::debug!(?server_proxy_url, "server details");
+        let proxy_server: Vec<_> = server_proxy_url
             .to_socket_addrs()
             .expect("Unable to resolve domain")
             .collect();
 
-        let ret = proxy_client::start(server[0], connect_service_request_receiver).await;
+        let ret = proxy_client::start(proxy_server[0], connect_service_request_receiver).await;
         if let Err(e) = ret {
             tracing::error!(?e, "proxy server error");
         }
@@ -301,7 +301,8 @@ pub struct Environment {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConnectServiceRequest {
-    pub portalbox_inner_token: Uuid,
+    #[serde(serialize_with = "models::serialize_secret_string")]
+    pub portalbox_inner_token: SecretString,
     pub hostname: String,
     pub local_service_name: String,
     pub local_service_address: SocketAddr,

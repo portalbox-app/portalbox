@@ -132,10 +132,10 @@ async fn handle_websocket_incoming(
                 let _ = ws_msg_sender.send(Message::Pong(data));
             }
             Message::Pong(data) => {
-                tracing::debug!(?data, "got pong data");
+                tracing::debug!(?data, "Pong");
             }
             Message::Close(data) => {
-                tracing::debug!(?data, "got close message");
+                tracing::debug!(?data, "Close");
             }
         };
     }

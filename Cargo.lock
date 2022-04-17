@@ -340,6 +340,7 @@ dependencies = [
  "portable-pty",
  "pulldown-cmark",
  "reqwest",
+ "secrecy",
  "semver",
  "serde",
  "serde_json",
@@ -1238,6 +1239,7 @@ name = "models"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "secrecy",
  "semver",
  "serde",
  "serde_json",
@@ -1953,6 +1955,16 @@ checksum = "d53dcdb7c9f8158937a7981b48accfd39a43af418591a5d008c7b22b5e1b7ca4"
 dependencies = [
  "ring",
  "untrusted",
+]
+
+[[package]]
+name = "secrecy"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+dependencies = [
+ "serde",
+ "zeroize",
 ]
 
 [[package]]
@@ -3082,3 +3094,9 @@ checksum = "244c3741f4240ef46274860397c7c74e50eb23624996930e484c16679633a54c"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "zeroize"
+version = "1.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7eb5728b8afd3f280a869ce1d4c554ffaed35f45c231fc41bfbd0381bef50317"
