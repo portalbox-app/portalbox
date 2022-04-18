@@ -1,9 +1,9 @@
-name: Build PortalBox VSCode
+name: Release PortalBox
 on:
   push:
     tags:
       - "v*"
-concurrency: 
+concurrency:
   group: release
   cancel-in-progress: true
 jobs:
