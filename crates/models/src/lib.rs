@@ -73,6 +73,7 @@ pub struct SignIn {
     pub password: SecretString,
     #[serde(default, rename = "remember-me")]
     pub remember_me: bool,
+    pub base_hostname: Option<String>,
 }
 
 pub fn serialize_secret_string<S>(value: &SecretString, s: S) -> Result<S::Ok, S::Error>

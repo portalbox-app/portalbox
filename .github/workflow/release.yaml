@@ -1,0 +1,28 @@
+name: Build PortalBox VSCode
+on:
+  push:
+    tags:
+      - "v*"
+concurrency: 
+  group: release
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-2019, ubuntu-20.04, macos-11]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: 1.60.0
+      - name: Build for ${{ matrix.os }}
+        run: |
+          cargo build --all --release
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: target/release/PROJECT_NAME
