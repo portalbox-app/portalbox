@@ -25,7 +25,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --locked --target ${{ matrix.target }}
+          args: --release --locked
       - name: Build release binary for ${{ matrix.os }}
         uses: actions-rs/cargo@v1
         with:
