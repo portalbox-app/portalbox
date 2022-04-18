@@ -79,7 +79,13 @@ fn build_web() -> Result<(), anyhow::Error> {
     {
         let dir = project_dir.join("website/static");
         let _webdir = sh.push_dir(dir);
-        cmd!(sh, "npm install").run()?;
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                cmd!(sh, "powershell npm install").run()?;
+            } else {
+                cmd!(sh, "npm install").run()?;
+            }
+        }
     }
 
     cmd!(sh, "cp -r {project_dir}/website/static/ wwwroot").run()?;
