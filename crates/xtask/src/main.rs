@@ -1,6 +1,6 @@
 use std::{
     env,
-    fs::{self, File},
+    fs::{self},
     path::{Path, PathBuf},
 };
 
@@ -12,6 +12,7 @@ fn main() -> Result<(), anyhow::Error> {
         .ok_or(anyhow::anyhow!("No sub command"))?;
     match task.as_str() {
         "dist" => dist()?,
+        "release" => release()?,
         "clean_web" => clean_web()?,
         "build_web" => build_web()?,
         _ => return Err(anyhow::anyhow!("Unexpected sub command")),
@@ -30,18 +31,7 @@ fn dist() -> Result<(), anyhow::Error> {
     dist_binary()?;
     println!("Done building binaries");
     let output_name = {
-        let version = {
-            let project_dir = project_root();
-            let cargo_toml_path = project_dir.join("crates/client/Cargo.toml");
-            let cargo_toml_content = std::fs::read_to_string(cargo_toml_path)?;
-            let value: toml::Value = toml::from_str(&cargo_toml_content)?;
-
-            let version = value["package"]["version"].clone();
-            version
-                .as_str()
-                .map(|val| val.to_string())
-                .ok_or(anyhow::anyhow!("No version found"))?
-        };
+        let version = version()?;
         let platform_arch = get_out_platform_arch();
         format!("portalbox-{version}-{platform_arch}")
     };
@@ -86,6 +76,21 @@ fn dist_binary() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+fn release() -> Result<(), anyhow::Error> {
+    let version = version()?;
+    println!("Making a release version = {version}");
+
+    let project_dir = project_root();
+
+    let sh = Shell::new()?;
+    sh.change_dir(&project_dir);
+
+    cmd!(sh, "git tag -a v{version} -m \"Version {version}\"").run()?;
+    cmd!(sh, "git push --tags").run()?;
+
+    Ok(())
+}
+
 fn clean_web() -> Result<(), anyhow::Error> {
     let project_dir = project_root();
     let wwwroot_dir = project_dir.join("wwwroot");
@@ -120,6 +125,21 @@ fn build_web() -> Result<(), anyhow::Error> {
     cmd!(sh, "cp -r {project_dir}/website/static/ wwwroot").run()?;
 
     Ok(())
+}
+
+fn version() -> Result<String, anyhow::Error> {
+    let project_dir = project_root();
+    let cargo_toml_path = project_dir.join("crates/client/Cargo.toml");
+    let cargo_toml_content = std::fs::read_to_string(cargo_toml_path)?;
+    let value: toml::Value = toml::from_str(&cargo_toml_content)?;
+
+    let version = value["package"]["version"].clone();
+    let ret = version
+        .as_str()
+        .map(|val| val.to_string())
+        .ok_or(anyhow::anyhow!("No version found"))?;
+
+    Ok(ret)
 }
 
 fn get_build_arch() -> String {
