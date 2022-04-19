@@ -39,6 +39,8 @@ fn dist() -> Result<(), anyhow::Error> {
     let sh = Shell::new()?;
     cmd!(sh, "tar -czf {output_name}.tar.gz -C target/dist .").run()?;
 
+    cmd!(sh, "shasum -a 256 {output_name}.tar.gz").run()?;
+
     println!("Dist available at {}", dist_dir.display());
 
     Ok(())
