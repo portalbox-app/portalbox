@@ -13,6 +13,7 @@ fn main() -> Result<(), anyhow::Error> {
     match task.as_str() {
         "dist" => dist()?,
         "release" => release()?,
+        "unrelease" => unrelease()?,
         "clean_web" => clean_web()?,
         "build_web" => build_web()?,
         _ => return Err(anyhow::anyhow!("Unexpected sub command")),
@@ -55,9 +56,9 @@ fn dist_binary() -> Result<(), anyhow::Error> {
     let binary_filename;
     cfg_if::cfg_if! {
         if #[cfg(target_os = "windows")] {
-            binary_filename = "client.exe";
+            binary_filename = "portalbox.exe";
         } else {
-            binary_filename = "client";
+            binary_filename = "portalbox";
         }
     };
 
@@ -87,6 +88,21 @@ fn release() -> Result<(), anyhow::Error> {
 
     cmd!(sh, "git tag -a v{version} -m 'Version {version}'").run()?;
     cmd!(sh, "git push --tags").run()?;
+
+    Ok(())
+}
+
+fn unrelease() -> Result<(), anyhow::Error> {
+    let version = version()?;
+    println!("Removing a release version = {version}");
+
+    let project_dir = project_root();
+
+    let sh = Shell::new()?;
+    sh.change_dir(&project_dir);
+
+    cmd!(sh, "git tag -d v{version}").run()?;
+    cmd!(sh, "git push --delete origin v{version}").run()?;
 
     Ok(())
 }

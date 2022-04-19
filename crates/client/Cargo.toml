@@ -5,6 +5,10 @@ version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "portalbox"
+path = "src/main.rs"
+
 [dependencies]
 models = { path = "../models" }
 
