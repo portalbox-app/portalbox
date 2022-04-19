@@ -94,7 +94,7 @@ fn release() -> Result<(), anyhow::Error> {
 
     let sh = Shell::new()?;
     sh.change_dir(&project_dir);
-    let tag_msg = "Version {version}";
+    let tag_msg = format!("Version {version}");
 
     cmd!(sh, "git tag -a v{version} -m {tag_msg}").run()?;
     cmd!(sh, "git push --tags").run()?;
