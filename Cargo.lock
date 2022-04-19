@@ -3116,6 +3116,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cfg-if",
+ "toml",
  "xshell",
 ]
 

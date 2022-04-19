@@ -1,5 +1,6 @@
 use std::{
-    env, fs,
+    env,
+    fs::{self, File},
     path::{Path, PathBuf},
 };
 
@@ -25,8 +26,27 @@ fn dist() -> Result<(), anyhow::Error> {
     let _ = fs::remove_dir_all(&dist_dir);
     fs::create_dir_all(&dist_dir)?;
 
-    build_web()?;
+    // build_web()?;
     dist_binary()?;
+    println!("Done building binaries");
+    let output_name = {
+        let version = {
+            let project_dir = project_root();
+            let cargo_toml_path = project_dir.join("crates/client/Cargo.toml");
+            let cargo_toml_content = std::fs::read_to_string(cargo_toml_path)?;
+            let value: toml::Value = toml::from_str(&cargo_toml_content)?;
+
+            let version = value["package"]["version"].clone();
+            version
+                .as_str()
+                .map(|val| val.to_string())
+                .ok_or(anyhow::anyhow!("No version found"))?
+        };
+        let platform_arch = get_out_platform_arch();
+        format!("portalbox-{version}-{platform_arch}")
+    };
+    let sh = Shell::new()?;
+    cmd!(sh, "tar -czf {output_name}.tar.gz -C target/dist .").run()?;
 
     println!("Dist available at {}", dist_dir.display());
 
@@ -42,9 +62,18 @@ fn dist_binary() -> Result<(), anyhow::Error> {
     let sh = Shell::new()?;
     cmd!(sh, "cargo build --release --locked").run()?;
 
-    let dst = project_root().join("target/release/client");
+    let binary_filename;
+    cfg_if::cfg_if! {
+        if #[cfg(target_os = "windows")] {
+            binary_filename = "client.exe";
+        } else {
+            binary_filename = "client";
+        }
+    };
 
-    fs::copy(&dst, dist_dir.join("client"))?;
+    let dst = project_root().join("target/release").join(binary_filename);
+
+    fs::copy(&dst, dist_dir.join(binary_filename))?;
 
     cmd!(sh, "cp -R {project_dir}/wwwroot {dist_dir}").run()?;
     cmd!(sh, "mkdir -p {dist_dir}/website").run()?;
@@ -91,6 +120,17 @@ fn build_web() -> Result<(), anyhow::Error> {
     cmd!(sh, "cp -r {project_dir}/website/static/ wwwroot").run()?;
 
     Ok(())
+}
+
+fn get_build_arch() -> String {
+    "x64".into()
+}
+
+fn get_out_platform_arch() -> String {
+    let os = std::env::consts::OS;
+    let arch = get_build_arch();
+
+    format!("{os}-{arch}")
 }
 
 fn project_root() -> PathBuf {
