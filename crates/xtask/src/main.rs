@@ -41,12 +41,11 @@ fn dist() -> Result<(), anyhow::Error> {
 
     cfg_if::cfg_if! {
         if #[cfg(target_os = "windows")] {
-            cmd!(sh, "shasum -a 256 {output_name}.tar.gz").run()?;
-        } else {
             cmd!(sh, "powershell Get-FileHash -Path {output_name}.tar.gz").run()?;
+        } else {
+            cmd!(sh, "shasum -a 256 {output_name}.tar.gz").run()?;
         }
     };
-    
 
     println!("Dist available at {}", dist_dir.display());
 
