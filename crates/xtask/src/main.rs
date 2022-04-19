@@ -39,7 +39,14 @@ fn dist() -> Result<(), anyhow::Error> {
     let sh = Shell::new()?;
     cmd!(sh, "tar -czf {output_name}.tar.gz -C target/dist .").run()?;
 
-    cmd!(sh, "shasum -a 256 {output_name}.tar.gz").run()?;
+    cfg_if::cfg_if! {
+        if #[cfg(target_os = "windows")] {
+            cmd!(sh, "shasum -a 256 {output_name}.tar.gz").run()?;
+        } else {
+            cmd!(sh, "powershell Get-FileHash -Path {output_name}.tar.gz").run()?;
+        }
+    };
+    
 
     println!("Dist available at {}", dist_dir.display());
 
@@ -87,8 +94,9 @@ fn release() -> Result<(), anyhow::Error> {
 
     let sh = Shell::new()?;
     sh.change_dir(&project_dir);
+    let tag_msg = "Version {version}";
 
-    cmd!(sh, "git tag -a v{version} -m 'Version {version}'").run()?;
+    cmd!(sh, "git tag -a v{version} -m {tag_msg}").run()?;
     cmd!(sh, "git push --tags").run()?;
 
     Ok(())
