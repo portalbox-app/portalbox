@@ -16,6 +16,7 @@ pub struct Config {
     pub vscode_port: u16,
     // Configurable, default to local data dir/PORTALBOX_DIR
     pub home_dir: PathBuf,
+    pub runtime_dir: Option<PathBuf>,
     pub telemetry: bool,
     pub log: String,
 }
@@ -34,6 +35,7 @@ impl Default for Config {
             local_home_service_port: 3030,
             vscode_port: 3000,
             home_dir: default_home_dir,
+            runtime_dir: None,
             telemetry: true,
             log: "".into(),
         }

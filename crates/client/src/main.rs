@@ -99,9 +99,25 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         .run();
     });
 
-    let serve_dir_service = ServeDir::new("wwwroot");
+    let serve_dir_service = {
+        let wwwroot_dir = if let Some(runtime_dir) = &config.runtime_dir {
+            runtime_dir.join("wwwroot")
+        } else {
+            "wwwroot".into()
+        };
 
-    let tera = Tera::new("website/templates/**/*.html").unwrap();
+        ServeDir::new(wwwroot_dir)
+    };
+
+    let tera = {
+        let templates_dir = if let Some(runtime_dir) = &config.runtime_dir {
+            runtime_dir.join("website/templates")
+        } else {
+            "website/templates".into()
+        };
+        let dir_glob = format!("{}/**/*.html", templates_dir.display());
+        Tera::new(&dir_glob).unwrap()
+    };
     let (connect_service_request_sender, connect_service_request_receiver) =
         tokio::sync::mpsc::channel(10);
 
