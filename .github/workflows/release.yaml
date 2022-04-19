@@ -31,3 +31,7 @@ jobs:
         with:
           command: xtask
           args: dist
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: portalbox-*.tar.gz
