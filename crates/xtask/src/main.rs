@@ -26,7 +26,7 @@ fn dist() -> Result<(), anyhow::Error> {
     let _ = fs::remove_dir_all(&dist_dir);
     fs::create_dir_all(&dist_dir)?;
 
-    // build_web()?;
+    build_web()?;
     dist_binary()?;
     println!("Done building binaries");
     let output_name = {
