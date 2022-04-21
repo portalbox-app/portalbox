@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 
 use config::{ConfigError, Environment, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 pub(crate) const PORTALBOX_DIR: &str = ".portalbox";
 const CONFIG_FILE: &str = "config.toml";
+const ENV_VAR_PREFIX: &str = "PORTALBOX";
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub server_url: Url,
@@ -55,7 +56,7 @@ impl Config {
 
         let ret = ::config::Config::builder()
             .add_source(file_source.required(false))
-            .add_source(Environment::with_prefix("PORTALBOX"))
+            .add_source(Environment::with_prefix(ENV_VAR_PREFIX))
             .build()?;
 
         // You can deserialize (and thus freeze) the entire configuration as
@@ -104,6 +105,12 @@ impl Config {
         let _ = tokio::fs::create_dir_all(apps_dir).await?;
         let _ = tokio::fs::create_dir_all(apps_data_dir).await?;
 
+        Ok(())
+    }
+
+    pub async fn show(&self) -> Result<(), anyhow::Error> {
+        let toml_format = toml::to_string_pretty(self)?;
+        println!("{}", toml_format);
         Ok(())
     }
 }

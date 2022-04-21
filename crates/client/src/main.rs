@@ -47,6 +47,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     match args.command {
         Commands::Start => start(config).await,
+        Commands::Config => config.show().await,
         Commands::Reset(reset) => {
             let ret = reset::reset(reset, config).await;
             ret
