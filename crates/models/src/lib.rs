@@ -170,9 +170,9 @@ impl AppInfo {
         let mut dir = self.vscode_dir(apps_dir);
         cfg_if::cfg_if! {
             if #[cfg(target_os = "windows")] {
-                dir.push("bin/portalbox-vscode")
-            } else {
                 dir.push("bin/portalbox-vscode.cmd")
+            } else {
+                dir.push("bin/portalbox-vscode")
             }
         };
         dir

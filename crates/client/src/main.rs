@@ -73,7 +73,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     let vscode_log_file = apps.vscode.output_file(&config.apps_data_dir());
 
     if !vscode_full_cmd.exists() {
-        tracing::error!("Can't find vscode");
+        tracing::error!(?vscode_full_cmd, "Can't find vscode");
         return Err(anyhow::anyhow!("Can't find vscode"));
     }
 

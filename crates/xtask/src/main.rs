@@ -133,7 +133,7 @@ fn build_web() -> Result<(), anyhow::Error> {
     let sh = Shell::new()?;
     sh.change_dir(&project_dir);
 
-    cmd!(sh, "mkdir -p wwwroot").run()?;
+    sh.create_dir("wwwroot")?;
 
     {
         let dir = project_dir.join("website/static");
