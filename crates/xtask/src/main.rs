@@ -59,6 +59,7 @@ fn dist_binary() -> Result<(), anyhow::Error> {
     println!("project_dir = {}", project_dir.display());
 
     let sh = Shell::new()?;
+    sh.create_dir(&dist_dir)?;
     cmd!(sh, "cargo build --release --locked").run()?;
 
     let binary_filename;
@@ -74,13 +75,13 @@ fn dist_binary() -> Result<(), anyhow::Error> {
 
     fs::copy(&dst, dist_dir.join(binary_filename))?;
 
-    cmd!(sh, "cp -R {project_dir}/wwwroot {dist_dir}").run()?;
-    cmd!(sh, "mkdir -p {dist_dir}/website").run()?;
-    cmd!(
-        sh,
-        "cp -R {project_dir}/website/templates {dist_dir}/website"
-    )
-    .run()?;
+    copy_dir_content(project_dir.join("wwwroot"), dist_dir.clone(), false)?;
+    sh.create_dir(dist_dir.join("website"))?;
+    copy_dir_content(
+        project_dir.join("website/templates"),
+        dist_dir.join("website"),
+        false,
+    )?;
 
     Ok(())
 }
@@ -147,7 +148,11 @@ fn build_web() -> Result<(), anyhow::Error> {
         }
     }
 
-    cmd!(sh, "cp -r {project_dir}/website/static/ wwwroot").run()?;
+    copy_dir_content(
+        project_dir.join("website/static"),
+        project_dir.join("wwwroot"),
+        true,
+    )?;
 
     Ok(())
 }
@@ -188,4 +193,17 @@ fn project_root() -> PathBuf {
 
 fn dist_dir() -> PathBuf {
     project_root().join("target/dist")
+}
+
+fn copy_dir_content<P: AsRef<Path>>(
+    from: P,
+    to: P,
+    content_only: bool,
+) -> Result<(), anyhow::Error> {
+    let mut copy_options = fs_extra::dir::CopyOptions::new();
+    copy_options.copy_inside = true;
+    copy_options.content_only = content_only;
+
+    fs_extra::dir::copy(from, to, &copy_options)?;
+    Ok(())
 }
