@@ -168,7 +168,13 @@ impl AppInfo {
 
     pub fn vscode_cmd<P: Into<PathBuf>>(&self, apps_dir: P) -> PathBuf {
         let mut dir = self.vscode_dir(apps_dir);
-        dir.push("bin/portalbox-vscode");
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                dir.push("bin/portalbox-vscode")
+            } else {
+                dir.push("bin/portalbox-vscode.cmd")
+            }
+        };
         dir
     }
 

@@ -17,6 +17,7 @@ axum = { version = "0.5.0", features = ["ws"] }
 backoff = { version = "0.4.0", features = ["tokio"] }
 byte-unit = "4.0.14"
 bytes = "1.1.0"
+cfg-if = "1.0.0"
 clap = { version = "3.1.8", features = ["derive"] }
 config = { version = "0.13.0", default-features = false, features = ["toml"] }
 dashmap = "5.2.0"

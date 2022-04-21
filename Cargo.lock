@@ -321,6 +321,7 @@ dependencies = [
  "backoff",
  "byte-unit",
  "bytes",
+ "cfg-if",
  "clap",
  "config",
  "dashmap 5.2.0",
@@ -1239,6 +1240,7 @@ name = "models"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cfg-if",
  "secrecy",
  "semver",
  "serde",

@@ -7,6 +7,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0.45"
+cfg-if = "1.0.0"
 secrecy = { version = "0.8.0", features = ["serde"] }
 semver = { version = "1.0.7", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
