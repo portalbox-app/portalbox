@@ -177,7 +177,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         }
     };
 
-    tracing::info!("Checking for update...");
+    tracing::debug!("Checking for update...");
     let _ = version::check(&config).await;
 
     tokio::select! {
