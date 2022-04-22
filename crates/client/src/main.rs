@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use tera::Tera;
+use tokio::signal;
 use tokio::sync::Mutex;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
@@ -80,9 +81,11 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     }
 
     let config_2 = config.clone();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
     let vscode_fut = tokio::task::spawn_blocking(move || {
         tracing::info!("VSCode starting...");
-        let _vscode_cmd = duct::cmd!(
+        let vscode = duct::cmd!(
             vscode_full_cmd,
             "--host",
             "0.0.0.0",
@@ -98,8 +101,13 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         )
         .stderr_to_stdout()
         .stdout_path(vscode_log_file)
-        .run();
+        .start();
+        if let Ok(vscode) = vscode {
+            let _ = tx.send(vscode);
+        }
     });
+
+    let vscode_handle = rx.await?;
 
     let serve_dir_service = {
         let wwwroot_dir = if let Ok(runtime_dir) = &config.runtime_dir() {
@@ -191,8 +199,13 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         _ = proxy_client_fut => {
             tracing::info!("proxy client ended");
         }
+        _ = signal::ctrl_c() => {
+            tracing::info!("Ctrl-C received, terminating...");
+        }
     }
 
+    vscode_handle.kill();
+    tracing::info!("Terminated");
     Ok(())
 }
 
