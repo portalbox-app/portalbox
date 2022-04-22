@@ -24,13 +24,15 @@ pub fn routes() -> Router {
 }
 
 async fn handle_term_ws(
-    Extension(_env): Extension<Environment>,
+    Extension(env): Extension<Environment>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    ws.on_upgrade(handle_socket)
+    ws.on_upgrade(|socket| async {
+        handle_socket(socket, env).await;
+    })
 }
 
-async fn handle_socket(socket: WebSocket) {
+async fn handle_socket(socket: WebSocket, env: Environment) {
     tracing::debug!("handle_socket");
     // Create a new pty
     let pair = {
@@ -46,8 +48,26 @@ async fn handle_socket(socket: WebSocket) {
     };
 
     // Spawn a shell into the pty
-    let shell = std::env::var("SHELL").unwrap();
-    let cmd = CommandBuilder::new(shell);
+    let shell_command = if let Some(cmd) = &env.config.shell_command {
+        cmd.to_string()
+    } else {
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let default_shell = "powershell".to_string();
+            } else {
+                let default_shell = std::env::var("SHELL").unwrap();
+            }
+        };
+
+        default_shell
+    };
+
+    let default_dir = dirs::home_dir().unwrap();
+    tracing::debug!(?shell_command, ?default_dir, "Starting shell");
+
+    let mut cmd = CommandBuilder::new(shell_command);
+    cmd.cwd(default_dir);
+
     let _child = pair.slave.spawn_command(cmd).unwrap();
 
     let mut pty_reader = pair.master.try_clone_reader().unwrap();
@@ -94,16 +114,16 @@ async fn handle_socket(socket: WebSocket) {
             portalbox_cmd_sender,
             ws_msg_sender.clone(),
         ) => {
-            tracing::info!("handle_websocket_incoming completed");
+            tracing::debug!("handle_websocket_incoming completed");
         }
         _ = handle_pty_incoming(pty_read_receiver, ws_msg_sender) => {
-            tracing::info!("handle_pty_incoming completed");
+            tracing::debug!("handle_pty_incoming completed");
         }
         _ = handle_ws_msg_send(ws_msg_receiver, ws_outgoing) => {
-            tracing::info!("handle_ws_msg_send completed");
+            tracing::debug!("handle_ws_msg_send completed");
         }
         _ = handle_portalbox_cmds(portalbox_cmd_receiver, pair) => {
-            tracing::info!("handle_portalbox_cmds completed");
+            tracing::debug!("handle_portalbox_cmds completed");
         }
     };
 

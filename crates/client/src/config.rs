@@ -15,6 +15,7 @@ pub struct Config {
     pub server_proxy_port: u16,
     pub local_home_service_port: u16,
     pub vscode_port: u16,
+    pub shell_command: Option<String>,
     // Configurable, default to local data dir/PORTALBOX_DIR
     pub home_dir: PathBuf,
     pub runtime_dir: Option<PathBuf>,
@@ -35,6 +36,7 @@ impl Default for Config {
             server_proxy_port: 46637,
             local_home_service_port: 3030,
             vscode_port: 3000,
+            shell_command: None,
             home_dir: default_home_dir,
             runtime_dir: None,
             telemetry: true,
