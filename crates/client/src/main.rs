@@ -58,7 +58,8 @@ async fn main() -> Result<(), anyhow::Error> {
 async fn start(config: Config) -> Result<(), anyhow::Error> {
     let config_1 = config.clone();
 
-    tracing::info!(?config, "Starting...");
+    tracing::info!("Starting...");
+    tracing::debug!(?config, runtime_dir = ?config.runtime_dir());
 
     let apps = match init_apps(&config).await {
         Ok(val) => val,
@@ -101,7 +102,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     });
 
     let serve_dir_service = {
-        let wwwroot_dir = if let Some(runtime_dir) = &config.runtime_dir {
+        let wwwroot_dir = if let Ok(runtime_dir) = &config.runtime_dir() {
             runtime_dir.join("wwwroot")
         } else {
             "wwwroot".into()
@@ -111,7 +112,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     };
 
     let tera = {
-        let templates_dir = if let Some(runtime_dir) = &config.runtime_dir {
+        let templates_dir = if let Ok(runtime_dir) = &config.runtime_dir() {
             runtime_dir.join("website/templates")
         } else {
             "website/templates".into()

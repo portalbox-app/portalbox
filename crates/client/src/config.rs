@@ -108,6 +108,21 @@ impl Config {
         Ok(())
     }
 
+    pub fn runtime_dir(&self) -> Result<PathBuf, anyhow::Error> {
+        if let Some(dir) = &self.runtime_dir {
+            return Ok(dir.clone());
+        }
+
+        if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
+            let dir = PathBuf::from(dir);
+            let project_dir = dir.ancestors().nth(2).unwrap();
+            return Ok(project_dir.to_path_buf());
+        }
+
+        let ret = std::env::current_exe()?;
+        Ok(ret)
+    }
+
     pub async fn show(&self) -> Result<(), anyhow::Error> {
         let toml_format = toml::to_string_pretty(self)?;
         println!("{}", toml_format);
