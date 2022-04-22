@@ -81,33 +81,24 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     }
 
     let config_2 = config.clone();
-    let (tx, rx) = tokio::sync::oneshot::channel();
-
-    let vscode_fut = tokio::task::spawn_blocking(move || {
-        tracing::info!("VSCode starting...");
-        let vscode = duct::cmd!(
-            vscode_full_cmd,
-            "--host",
-            "0.0.0.0",
-            "--port",
-            config.vscode_port.to_string(),
-            "--server-data-dir",
-            apps.vscode.server_data_dir(&config_2.apps_data_dir()),
-            "--user-data-dir",
-            apps.vscode.user_data_dir(&config_2.apps_data_dir()),
-            "--extensions-dir",
-            apps.vscode.extensions_dir(&config_2.apps_data_dir()),
-            "--without-connection-token"
-        )
-        .stderr_to_stdout()
-        .stdout_path(vscode_log_file)
-        .start();
-        if let Ok(vscode) = vscode {
-            let _ = tx.send(vscode);
-        }
-    });
-
-    let vscode_handle = rx.await?;
+    tracing::info!("VSCode starting...");
+    let vscode_handle = duct::cmd!(
+        vscode_full_cmd,
+        "--host",
+        "0.0.0.0",
+        "--port",
+        config.vscode_port.to_string(),
+        "--server-data-dir",
+        apps.vscode.server_data_dir(&config_2.apps_data_dir()),
+        "--user-data-dir",
+        apps.vscode.user_data_dir(&config_2.apps_data_dir()),
+        "--extensions-dir",
+        apps.vscode.extensions_dir(&config_2.apps_data_dir()),
+        "--without-connection-token"
+    )
+    .stderr_to_stdout()
+    .stdout_path(vscode_log_file)
+    .start()?;
 
     let serve_dir_service = {
         let wwwroot_dir = if let Ok(runtime_dir) = &config.runtime_dir() {
@@ -193,9 +184,6 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         _ = server_fut => {
             tracing::info!("server_fut ended");
         }
-        _ = vscode_fut => {
-            tracing::info!("vscode command ended");
-        }
         _ = proxy_client_fut => {
             tracing::info!("proxy client ended");
         }
@@ -204,7 +192,10 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         }
     }
 
-    vscode_handle.kill();
+    let vscode_killed = vscode_handle.kill();
+    if let Err(e) = vscode_killed {
+        tracing::error!(?e, "Failed to kill the vscode process");
+    }
     tracing::info!("Terminated");
     Ok(())
 }
