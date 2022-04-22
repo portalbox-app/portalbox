@@ -277,9 +277,8 @@ async fn fetch_or_update_apps(
     tracing::info!("Downloading vscode");
 
     let tar_gz_path = {
-        let mut ret = config.home_dir.clone();
-        ret.push("vscode-latest.tar.gz");
-        ret
+        let home_dir = config.home_dir.clone();
+        home_dir.join("vscode-latest.tar.gz")
     };
     let _ = downloader::download_file(&apps_result.vscode.download_link, &tar_gz_path).await?;
 

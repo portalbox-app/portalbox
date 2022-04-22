@@ -26,9 +26,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let default_home_dir = {
-            let mut home_dir = dirs::home_dir().unwrap();
-            home_dir.push(PORTALBOX_DIR);
-            home_dir
+            let home_dir = dirs::home_dir().unwrap();
+            home_dir.join(PORTALBOX_DIR)
         };
 
         Self {
@@ -48,10 +47,9 @@ impl Default for Config {
 impl Config {
     pub fn new(config_file: Option<PathBuf>) -> Result<Self, ConfigError> {
         let config_file = config_file.unwrap_or_else(|| {
-            let mut home_dir = dirs::home_dir().unwrap();
-            home_dir.push(PORTALBOX_DIR);
-            home_dir.push(CONFIG_FILE);
-            home_dir
+            let home_dir = dirs::home_dir().unwrap();
+            let config_file_relative = format!("{PORTALBOX_DIR}/{CONFIG_FILE}");
+            home_dir.join(config_file_relative)
         });
 
         let file_source = File::from(config_file);
@@ -83,21 +81,18 @@ impl Config {
     }
 
     pub fn apps_dir(&self) -> PathBuf {
-        let mut ret = self.home_dir.clone();
-        ret.push("apps");
-        ret
+        let home_dir = self.home_dir.clone();
+        home_dir.join("apps")
     }
 
     pub fn apps_data_dir(&self) -> PathBuf {
-        let mut ret = self.home_dir.clone();
-        ret.push("apps-data");
-        ret
+        let home_dir = self.home_dir.clone();
+        home_dir.join("apps-data")
     }
 
     pub fn credentials_file_path(&self) -> PathBuf {
-        let mut ret = self.home_dir.clone();
-        ret.push("credentials.toml");
-        ret
+        let home_dir = self.home_dir.clone();
+        home_dir.join("credentials.toml")
     }
 
     pub async fn ensure_all_dirs(&self) -> Result<(), anyhow::Error> {
