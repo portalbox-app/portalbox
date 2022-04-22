@@ -116,7 +116,11 @@ impl Config {
             return Ok(project_dir.to_path_buf());
         }
 
-        let ret = std::env::current_exe()?;
+        let current_exe = std::env::current_exe()?;
+        let ret = current_exe
+            .parent()
+            .expect("Should have a parent dir")
+            .to_path_buf();
         Ok(ret)
     }
 
