@@ -1,19 +1,21 @@
 use std::path::PathBuf;
 
 use config::{ConfigError, Environment, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 pub(crate) const PORTALBOX_DIR: &str = ".portalbox";
 const CONFIG_FILE: &str = "config.toml";
+const ENV_VAR_PREFIX: &str = "PORTALBOX";
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub server_url: Url,
     pub server_proxy_port: u16,
     pub local_home_service_port: u16,
     pub vscode_port: u16,
+    pub shell_command: Option<String>,
     // Configurable, default to local data dir/PORTALBOX_DIR
     pub home_dir: PathBuf,
     pub runtime_dir: Option<PathBuf>,
@@ -24,9 +26,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let default_home_dir = {
-            let mut home_dir = dirs::home_dir().unwrap();
-            home_dir.push(PORTALBOX_DIR);
-            home_dir
+            let home_dir = dirs::home_dir().unwrap();
+            home_dir.join(PORTALBOX_DIR)
         };
 
         Self {
@@ -34,6 +35,7 @@ impl Default for Config {
             server_proxy_port: 46637,
             local_home_service_port: 3030,
             vscode_port: 3000,
+            shell_command: None,
             home_dir: default_home_dir,
             runtime_dir: None,
             telemetry: true,
@@ -45,17 +47,16 @@ impl Default for Config {
 impl Config {
     pub fn new(config_file: Option<PathBuf>) -> Result<Self, ConfigError> {
         let config_file = config_file.unwrap_or_else(|| {
-            let mut home_dir = dirs::home_dir().unwrap();
-            home_dir.push(PORTALBOX_DIR);
-            home_dir.push(CONFIG_FILE);
-            home_dir
+            let home_dir = dirs::home_dir().unwrap();
+            let config_file_relative = format!("{PORTALBOX_DIR}/{CONFIG_FILE}");
+            home_dir.join(config_file_relative)
         });
 
         let file_source = File::from(config_file);
 
         let ret = ::config::Config::builder()
             .add_source(file_source.required(false))
-            .add_source(Environment::with_prefix("PORTALBOX"))
+            .add_source(Environment::with_prefix(ENV_VAR_PREFIX))
             .build()?;
 
         // You can deserialize (and thus freeze) the entire configuration as
@@ -80,21 +81,18 @@ impl Config {
     }
 
     pub fn apps_dir(&self) -> PathBuf {
-        let mut ret = self.home_dir.clone();
-        ret.push("apps");
-        ret
+        let home_dir = self.home_dir.clone();
+        home_dir.join("apps")
     }
 
     pub fn apps_data_dir(&self) -> PathBuf {
-        let mut ret = self.home_dir.clone();
-        ret.push("apps-data");
-        ret
+        let home_dir = self.home_dir.clone();
+        home_dir.join("apps-data")
     }
 
     pub fn credentials_file_path(&self) -> PathBuf {
-        let mut ret = self.home_dir.clone();
-        ret.push("credentials.toml");
-        ret
+        let home_dir = self.home_dir.clone();
+        home_dir.join("credentials.toml")
     }
 
     pub async fn ensure_all_dirs(&self) -> Result<(), anyhow::Error> {
@@ -104,6 +102,31 @@ impl Config {
         let _ = tokio::fs::create_dir_all(apps_dir).await?;
         let _ = tokio::fs::create_dir_all(apps_data_dir).await?;
 
+        Ok(())
+    }
+
+    pub fn runtime_dir(&self) -> Result<PathBuf, anyhow::Error> {
+        if let Some(dir) = &self.runtime_dir {
+            return Ok(dir.clone());
+        }
+
+        if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
+            let dir = PathBuf::from(dir);
+            let project_dir = dir.ancestors().nth(2).unwrap();
+            return Ok(project_dir.to_path_buf());
+        }
+
+        let current_exe = std::env::current_exe()?;
+        let ret = current_exe
+            .parent()
+            .expect("Should have a parent dir")
+            .to_path_buf();
+        Ok(ret)
+    }
+
+    pub async fn show(&self) -> Result<(), anyhow::Error> {
+        let toml_format = toml::to_string_pretty(self)?;
+        println!("{}", toml_format);
         Ok(())
     }
 }

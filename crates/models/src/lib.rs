@@ -157,19 +157,24 @@ pub struct AppInfo {
 
 impl AppInfo {
     pub fn vscode_dir<P: Into<PathBuf>>(&self, apps_dir: P) -> PathBuf {
-        let mut apps_dir = apps_dir.into();
+        let apps_dir = apps_dir.into();
 
         let version = self.latest_version.to_string();
         let os_arch = self.os_arch.as_str();
         let dir_name = format!("portalbox-vscode-{version}-{os_arch}");
 
-        apps_dir.push(dir_name);
-        apps_dir
+        apps_dir.join(dir_name)
     }
 
     pub fn vscode_cmd<P: Into<PathBuf>>(&self, apps_dir: P) -> PathBuf {
         let mut dir = self.vscode_dir(apps_dir);
-        dir.push("bin/portalbox-vscode");
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                dir.push("bin/portalbox-vscode.cmd")
+            } else {
+                dir.push("bin/portalbox-vscode")
+            }
+        };
         dir
     }
 
@@ -186,15 +191,13 @@ impl AppInfo {
     }
 
     pub fn output_file<P: Into<PathBuf>>(&self, apps_data_dir: P) -> PathBuf {
-        let mut ret = apps_data_dir.into();
-        ret.push("vscode.log");
-
-        ret
+        let apps_data_dir = apps_data_dir.into();
+        apps_data_dir.join("vscode.log")
     }
 
     fn apps_data_subdir<P: Into<PathBuf>>(&self, apps_data_dir: P, subdir: &str) -> PathBuf {
-        let mut ret = apps_data_dir.into();
-        ret.push(subdir);
+        let apps_data_dir = apps_data_dir.into();
+        let ret = apps_data_dir.join(subdir);
 
         let _ = std::fs::create_dir_all(&ret);
 

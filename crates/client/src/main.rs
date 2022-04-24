@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use tera::Tera;
+use tokio::signal;
 use tokio::sync::Mutex;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
@@ -48,6 +49,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     match args.command {
         Commands::Start => start(config).await,
+        Commands::Config => config.show().await,
         Commands::Reset(reset) => {
             let ret = reset::reset(reset, config).await;
             ret
@@ -58,7 +60,8 @@ async fn main() -> Result<(), anyhow::Error> {
 async fn start(config: Config) -> Result<(), anyhow::Error> {
     let config_1 = config.clone();
 
-    tracing::info!(?config, "Starting...");
+    tracing::info!("Starting...");
+    tracing::debug!(?config, runtime_dir = ?config.runtime_dir());
 
     let apps = match init_apps(&config).await {
         Ok(val) => val,
@@ -74,34 +77,32 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     let vscode_log_file = apps.vscode.output_file(&config.apps_data_dir());
 
     if !vscode_full_cmd.exists() {
-        tracing::error!("Can't find vscode");
+        tracing::error!(?vscode_full_cmd, "Can't find vscode");
         return Err(anyhow::anyhow!("Can't find vscode"));
     }
 
     let config_2 = config.clone();
-    let vscode_fut = tokio::task::spawn_blocking(move || {
-        tracing::info!("VSCode starting...");
-        let _vscode_cmd = duct::cmd!(
-            vscode_full_cmd,
-            "--host",
-            "0.0.0.0",
-            "--port",
-            config.vscode_port.to_string(),
-            "--server-data-dir",
-            apps.vscode.server_data_dir(&config_2.apps_data_dir()),
-            "--user-data-dir",
-            apps.vscode.user_data_dir(&config_2.apps_data_dir()),
-            "--extensions-dir",
-            apps.vscode.extensions_dir(&config_2.apps_data_dir()),
-            "--without-connection-token"
-        )
-        .stderr_to_stdout()
-        .stdout_path(vscode_log_file)
-        .run();
-    });
+    tracing::info!("VSCode starting...");
+    let vscode_handle = duct::cmd!(
+        vscode_full_cmd,
+        "--host",
+        "0.0.0.0",
+        "--port",
+        config.vscode_port.to_string(),
+        "--server-data-dir",
+        apps.vscode.server_data_dir(&config_2.apps_data_dir()),
+        "--user-data-dir",
+        apps.vscode.user_data_dir(&config_2.apps_data_dir()),
+        "--extensions-dir",
+        apps.vscode.extensions_dir(&config_2.apps_data_dir()),
+        "--without-connection-token"
+    )
+    .stderr_to_stdout()
+    .stdout_path(vscode_log_file)
+    .start()?;
 
     let serve_dir_service = {
-        let wwwroot_dir = if let Some(runtime_dir) = &config.runtime_dir {
+        let wwwroot_dir = if let Ok(runtime_dir) = &config.runtime_dir() {
             runtime_dir.join("wwwroot")
         } else {
             "wwwroot".into()
@@ -111,7 +112,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     };
 
     let tera = {
-        let templates_dir = if let Some(runtime_dir) = &config.runtime_dir {
+        let templates_dir = if let Ok(runtime_dir) = &config.runtime_dir() {
             runtime_dir.join("website/templates")
         } else {
             "website/templates".into()
@@ -177,21 +178,26 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         }
     };
 
-    tracing::info!("Checking for update...");
+    tracing::debug!("Checking for update...");
     let _ = version::check(&config).await;
 
     tokio::select! {
         _ = server_fut => {
             tracing::info!("server_fut ended");
         }
-        _ = vscode_fut => {
-            tracing::info!("vscode command ended");
-        }
         _ = proxy_client_fut => {
             tracing::info!("proxy client ended");
         }
+        _ = signal::ctrl_c() => {
+            tracing::info!("Ctrl-C received, terminating...");
+        }
     }
 
+    let vscode_killed = vscode_handle.kill();
+    if let Err(e) = vscode_killed {
+        tracing::error!(?e, "Failed to kill the vscode process");
+    }
+    tracing::info!("Terminated");
     Ok(())
 }
 
@@ -272,9 +278,8 @@ async fn fetch_or_update_apps(
     tracing::info!("Downloading vscode");
 
     let tar_gz_path = {
-        let mut ret = config.home_dir.clone();
-        ret.push("vscode-latest.tar.gz");
-        ret
+        let home_dir = config.home_dir.clone();
+        home_dir.join("vscode-latest.tar.gz")
     };
     let _ = downloader::download_file(&apps_result.vscode.download_link, &tar_gz_path).await?;
 

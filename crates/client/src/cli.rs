@@ -16,6 +16,8 @@ pub struct Cli {
 pub enum Commands {
     /// Start the portalbox client
     Start,
+    /// Show current config
+    Config,
     /// Reset data
     Reset(Reset),
 }
