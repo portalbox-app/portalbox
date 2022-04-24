@@ -1,13 +1,14 @@
-use secrecy::ExposeSecret;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use uuid::Uuid;
+use std::str::FromStr;
 
-use crate::secrets::SecretToken;
+use secrecy::{ExposeSecret, SecretString};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+pub const AUTH_TOKEN_LENGTH: usize = 80;
 
 #[derive(Debug)]
 pub struct ProxyConnectionHelloFixed {
     pub version: u16,
-    pub inner_auth_token: Uuid,
+    pub inner_auth_token: SecretString,
     pub host_len: u16,
 }
 
@@ -17,7 +18,7 @@ pub enum ProxyConnectionAckMessage {
 }
 
 pub async fn write_hello_message<S: AsyncWrite + Unpin>(
-    inner_auth_token: SecretToken,
+    inner_auth_token: SecretString,
     host_name: &str,
     stream: &mut S,
 ) -> Result<(), anyhow::Error> {
@@ -44,21 +45,26 @@ pub async fn write_hello_message<S: AsyncWrite + Unpin>(
 pub async fn read_fixed_portion_hello_message<S: AsyncRead + Unpin>(
     stream: &mut S,
 ) -> Result<ProxyConnectionHelloFixed, anyhow::Error> {
-    let mut buf = vec![0u8; 20];
+    const BUF_LEN: usize = 2 + AUTH_TOKEN_LENGTH + 2;
+
+    let mut buf = vec![0u8; BUF_LEN];
 
     stream.read_exact(&mut buf).await?;
 
     let version = u16::from_be_bytes(buf[..2].try_into()?);
-    let auth_token = uuid::Uuid::from_slice(&buf[2..18])?;
-    let host_len = u16::from_be_bytes(buf[18..].try_into()?);
+    let auth_token_bytes = &buf[2..2 + AUTH_TOKEN_LENGTH];
+    let auth_token_str = std::str::from_utf8(auth_token_bytes)?;
+    let host_len = u16::from_be_bytes(buf[2 + AUTH_TOKEN_LENGTH..].try_into()?);
 
     if host_len > 1024 {
         return Err(anyhow::anyhow!("Invalid host length"));
     }
 
+    let inner_auth_token = SecretString::from_str(auth_token_str)?;
+
     let ret = ProxyConnectionHelloFixed {
         version,
-        inner_auth_token: auth_token,
+        inner_auth_token,
         host_len,
     };
 

@@ -11,8 +11,9 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use models::{secrets::SecretToken, Contact, SignIn, SignInResult};
+use models::{Contact, SignIn, SignInResult};
 use pulldown_cmark::{html, Parser};
+use secrecy::SecretString;
 use serde::Serialize;
 use sysinfo::{System, SystemExt};
 use tera::Context;
@@ -163,7 +164,7 @@ async fn request_and_start_service(
     env: &Environment,
     base_hostname: &str,
     service_name: &str,
-    client_access_token: SecretToken,
+    client_access_token: SecretString,
     local_service_address: SocketAddr,
 ) -> Result<(), anyhow::Error> {
     tracing::info!(?base_hostname, ?service_name, "Requesting service");
