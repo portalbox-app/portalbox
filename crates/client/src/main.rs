@@ -10,8 +10,11 @@ use dotenv::dotenv;
 use models::AppsResult;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
+use std::{
+    net::{SocketAddr, ToSocketAddrs},
+    time::Duration,
+};
 use tera::Tera;
 use tokio::signal;
 use tokio::sync::Mutex;
@@ -216,8 +219,11 @@ async fn init_apps(config: &Config) -> Result<AppsResult, anyhow::Error> {
             let current_vscode_version = val.vscode.latest_version.clone();
             let config_1 = config.clone();
             let update_fut = async move {
-                let _apps_result =
+                let apps_result =
                     fetch_or_update_apps(&config_1, Some(current_vscode_version)).await;
+                if let Err(e) = apps_result {
+                    tracing::error!(?e, "Error getting apps result");
+                }
             };
             tokio::spawn(update_fut);
 
@@ -247,11 +253,13 @@ async fn fetch_or_update_apps(
 ) -> Result<AppsResult, anyhow::Error> {
     let os_arch = models::get_os_arch();
     let url = config.server_url_with_path("api/apps");
-    tracing::info!(?os_arch, "Getting apps");
+    tracing::debug!(%url, ?os_arch, "Getting apps");
 
     let apps_request = models::AppsRequest { os_arch };
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
     let apps_result = client
         .get(url)
         .json(&apps_request)

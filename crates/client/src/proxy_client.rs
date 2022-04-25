@@ -25,15 +25,12 @@ pub async fn start(
 ) -> Result<(), anyhow::Error> {
     let start_service_fut = async move {
         let mut root_cert_store = tokio_rustls::rustls::RootCertStore::empty();
-        root_cert_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(
-            |ta| {
-                OwnedTrustAnchor::from_subject_spki_name_constraints(
-                    ta.subject,
-                    ta.spki,
-                    ta.name_constraints,
-                )
-            },
-        ));
+        for cert in rustls_native_certs::load_native_certs().expect("could not load platform certs")
+        {
+            root_cert_store
+                .add(&tokio_rustls::rustls::Certificate(cert.0))
+                .unwrap();
+        }
 
         let config = tokio_rustls::rustls::ClientConfig::builder()
             .with_safe_defaults()
@@ -153,6 +150,7 @@ async fn get_ready_connection(
     let _ = tcp_stream.set_nodelay(true);
 
     let domain = service_context.connect_service_request.hostname.as_str();
+
     let mut tls_stream = service_context
         .tls_connector
         .connect(domain.try_into()?, tcp_stream)

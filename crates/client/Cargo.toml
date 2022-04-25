@@ -37,8 +37,9 @@ reqwest = { version = "0.11.5", default-features = false, features = [
     "json",
     "multipart",
     "stream",
-    "rustls-tls",
+    "rustls-tls-native-roots",
 ] }
+rustls-native-certs = "0.6.2"
 secrecy = "0.8.0"
 semver = "1.0.7"
 serde = { version = "1", features = ["derive"] }
@@ -53,8 +54,7 @@ toml = "0.5.6"
 tower = "0.4.10"
 tower-http = { version = "0.2.0", features = ["fs", "trace"] }
 url = { version = "2", features = ["serde"] }
-uuid = { version = "0.8", features = ["v4", "serde"] }
-webpki-roots = "0.22"
+uuid = { version = "1.0.0", features = ["v4", "serde"] }
 
 opentelemetry = { version = "0.17.0", features = [
     "rt-tokio",
