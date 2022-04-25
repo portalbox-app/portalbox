@@ -234,7 +234,7 @@ async fn handle_post_contact(
     Extension(env): Extension<Environment>,
     Form(form): Form<Contact>,
 ) -> Result<Html<String>, ServerError> {
-    let url = env.config.server_url_with_path("api/services");
+    let url = env.config.server_url_with_path("api/contact");
     let client = reqwest::Client::new();
     let response = client.post(url).json(&form).send().await?;
 
