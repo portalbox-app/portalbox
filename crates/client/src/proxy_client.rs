@@ -6,7 +6,7 @@ use tokio::{
     net::TcpStream,
     sync::mpsc::Sender,
 };
-use tokio_rustls::{client::TlsStream, rustls::OwnedTrustAnchor, TlsConnector};
+use tokio_rustls::{client::TlsStream, TlsConnector};
 
 use crate::ConnectServiceRequest;
 
