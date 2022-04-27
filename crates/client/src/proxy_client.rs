@@ -61,13 +61,21 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
         tokio::sync::mpsc::channel::<()>(MAX_READY_CONNECTIONS);
     let new_stream_sender_1 = new_stream_sender.clone();
 
+    let (end_service_sender, mut end_service_receiver) = tokio::sync::mpsc::channel::<()>(1);
+
     let create_connection_fut = async move {
         while let Some(_) = new_stream_receiver.recv().await {
             let service_context_task = context.clone();
             let new_stream_sender_task = new_stream_sender_1.clone();
+            let end_service_sender = end_service_sender.clone();
 
             let connect_fut = async move {
-                let ret = run_proxy_connection(service_context_task, new_stream_sender_task).await;
+                let ret = run_proxy_connection(
+                    service_context_task,
+                    new_stream_sender_task,
+                    end_service_sender,
+                )
+                .await;
                 if let Err(e) = ret {
                     tracing::error!(?e, "connect_proxy error");
                 }
@@ -80,7 +88,15 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
         let _ = new_stream_sender.send(()).await;
     }
 
-    let _ = create_connection_fut.await;
+    tokio::select! {
+        _ = create_connection_fut => {
+            tracing::error!("Create connection future ended unexpectedly");
+        }
+        _ = end_service_receiver.recv() => {
+            tracing::info!("Terminating service...");
+        }
+    }
+
     Ok(())
 }
 
@@ -89,6 +105,7 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
 async fn run_proxy_connection(
     service_context: ServiceContext,
     new_stream_sender: Sender<()>,
+    end_service_sender: Sender<()>,
 ) -> Result<(), anyhow::Error> {
     tracing::debug!(?service_context.proxy_address, "run_proxy_connection");
     let mut backoff = ExponentialBackoff {
@@ -99,7 +116,7 @@ async fn run_proxy_connection(
 
     // Loop until we have a ready connection
     let mut proxy_stream = loop {
-        let ret = get_ready_connection(&service_context).await;
+        let ret = get_ready_connection(&service_context, end_service_sender.clone()).await;
 
         match ret {
             Ok(val) => break val,
@@ -145,6 +162,7 @@ async fn run_proxy_connection(
 
 async fn get_ready_connection(
     service_context: &ServiceContext,
+    end_service_sender: Sender<()>,
 ) -> Result<TlsStream<TcpStream>, anyhow::Error> {
     let tcp_stream = TcpStream::connect(service_context.proxy_address).await?;
     let _ = tcp_stream.set_nodelay(true);
@@ -171,6 +189,7 @@ async fn get_ready_connection(
     match ack_mess {
         models::protocol::ProxyConnectionAckMessage::Ok => Ok(tls_stream),
         models::protocol::ProxyConnectionAckMessage::Failed => {
+            let _ = end_service_sender.send(()).await;
             Err(anyhow::anyhow!("Stream failed auth"))
         }
     }
