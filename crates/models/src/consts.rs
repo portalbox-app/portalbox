@@ -1,2 +1,1 @@
 pub const MAX_READY_CONNECTIONS: usize = 4;
-pub const PORTALBOX_PING_SIGNAL: &[u8; 16] = b"PORTALBOX_PINGGG";

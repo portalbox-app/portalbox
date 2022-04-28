@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use secrecy::{ExposeSecret, SecretString};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -12,9 +13,14 @@ pub struct ProxyConnectionHelloFixed {
     pub host_len: u16,
 }
 
-pub enum ProxyConnectionAckMessage {
-    Ok,
-    Failed,
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(u16)]
+pub enum ProxyConnectionMessage {
+    AuthOk = 0x1111u16,
+    AuthFailed = 0x2222u16,
+    Ping = 0x3333,
+    Pong = 0x4444,
+    Data = 0x5555,
 }
 
 pub async fn write_hello_message<S: AsyncWrite + Unpin>(
@@ -71,32 +77,25 @@ pub async fn read_fixed_portion_hello_message<S: AsyncRead + Unpin>(
     Ok(ret)
 }
 
-pub async fn read_ack_message<S: AsyncRead + Unpin>(
+pub async fn read_proxy_message<S: AsyncRead + Unpin>(
     stream: &mut S,
-) -> Result<ProxyConnectionAckMessage, anyhow::Error> {
+) -> Result<ProxyConnectionMessage, anyhow::Error> {
     let mut buf = [0u8; 2];
 
     stream.read_exact(&mut buf).await?;
 
-    let code = i16::from_be_bytes(buf[..].try_into()?);
+    let code = u16::from_be_bytes(buf[..].try_into()?);
 
-    let ret = match code {
-        0 => ProxyConnectionAckMessage::Ok,
-        val if val < 0 => ProxyConnectionAckMessage::Failed,
-        _ => return Err(anyhow::anyhow!("Unknown ack code")),
-    };
+    let msg = ProxyConnectionMessage::try_from(code)?;
 
-    Ok(ret)
+    Ok(msg)
 }
 
-pub async fn write_ack_message<S: AsyncWrite + Unpin>(
+pub async fn write_proxy_message<S: AsyncWrite + Unpin>(
     stream: &mut S,
-    message: ProxyConnectionAckMessage,
+    message: ProxyConnectionMessage,
 ) -> Result<(), anyhow::Error> {
-    let code = match message {
-        ProxyConnectionAckMessage::Ok => 0i16,
-        ProxyConnectionAckMessage::Failed => -1i16,
-    };
+    let code: u16 = message.into();
 
     let code_bytes = code.to_be_bytes();
 
