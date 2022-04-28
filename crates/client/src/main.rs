@@ -225,7 +225,7 @@ async fn init_apps(config: &Config) -> Result<AppsResult, anyhow::Error> {
                     tracing::error!(?e, "Error getting apps result");
                 }
             };
-            tokio::spawn(update_fut);
+            tokio::task::spawn(update_fut);
 
             let ret = AppsResult {
                 vscode: val.vscode.clone(),

@@ -1,18 +1,13 @@
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use backoff::{backoff::Backoff, ExponentialBackoff};
-use tokio::{
-    io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-    sync::mpsc::Sender,
-};
+use models::{consts::MAX_READY_CONNECTIONS, protocol::ProxyConnectionMessage};
+use tokio::{io::copy_bidirectional, net::TcpStream, sync::mpsc::Sender};
 use tokio_rustls::{client::TlsStream, TlsConnector};
-use tokio_util::sync::CancellationToken;
 
 use crate::ConnectServiceRequest;
 
-const MAX_READY_CONNECTIONS: usize = 4;
-const REFRESH_CONN_INTERVAL: Duration = Duration::from_secs(60);
+const CONN_PING_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 struct ServiceContext {
@@ -48,7 +43,7 @@ pub async fn start(
                 tls_connector: connector.clone(),
             };
 
-            tokio::spawn(start_service(service_context));
+            tokio::task::spawn(start_service(service_context));
         }
     };
 
@@ -59,8 +54,6 @@ pub async fn start(
 
 async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
     tracing::info!(?context.connect_service_request, "Starting service...");
-
-    let connections = concurrent_queue::ConcurrentQueue::bounded(MAX_READY_CONNECTIONS);
 
     let (new_stream_sender, mut new_stream_receiver) =
         tokio::sync::mpsc::channel::<()>(MAX_READY_CONNECTIONS);
@@ -73,15 +66,12 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
             let service_context_task = context.clone();
             let new_stream_sender_task = new_stream_sender_1.clone();
             let end_service_sender = end_service_sender.clone();
-            let cancellation_token = CancellationToken::new();
-            let cancellation_token_1 = cancellation_token.clone();
 
             let connect_fut = async move {
                 let ret = run_proxy_connection(
                     service_context_task,
                     new_stream_sender_task,
                     end_service_sender,
-                    cancellation_token,
                 )
                 .await;
                 if let Err(e) = ret {
@@ -89,12 +79,7 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
                 }
             };
 
-            let _handle = tokio::spawn(connect_fut);
-
-            if connections.is_full() {
-                let _ = connections.pop();
-            }
-            let _ = connections.push(cancellation_token_1.drop_guard());
+            let _handle = tokio::task::spawn(connect_fut);
         }
     };
 
@@ -102,19 +87,9 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
         let _ = new_stream_sender.send(()).await;
     }
 
-    let refresh_connection_fut = async {
-        loop {
-            let _ = tokio::time::sleep(REFRESH_CONN_INTERVAL).await;
-            let _ = new_stream_sender.send(()).await;
-        }
-    };
-
     tokio::select! {
         _ = create_connection_fut => {
             tracing::error!("Create connection future ended unexpectedly");
-        }
-        _ = refresh_connection_fut => {
-            tracing::error!("refres_connection_fut ended unexpectedly");
         }
         _ = end_service_receiver.recv() => {
             tracing::info!("Terminating service...");
@@ -124,13 +99,11 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-// TODO: exponential backoff when auth failed
 // After: always kick off a new connection
 async fn run_proxy_connection(
     service_context: ServiceContext,
     new_stream_sender: Sender<()>,
     end_service_sender: Sender<()>,
-    cancellation_token: CancellationToken,
 ) -> Result<(), anyhow::Error> {
     tracing::debug!(?service_context.proxy_address, "run_proxy_connection");
     let mut backoff = ExponentialBackoff {
@@ -154,30 +127,13 @@ async fn run_proxy_connection(
         }
     };
 
-    let mut init_buf = [0u8; 1024];
-
-    // Wait for either cancellation or data to start flowing
-    let read = tokio::select! {
-        _ = cancellation_token.cancelled() => {
-            // The token was cancelled
-            tracing::debug!("connection cancelled");
-            return Ok(());
-        }
-        ret = proxy_stream.read(&mut init_buf) => {
-            ret
-        }
-    };
+    let data_flowing = wailt_till_data(&mut proxy_stream).await;
 
     // Start/error receiving data:
     // - Signal a new connection
     // - Continue this task to end
-    tracing::debug!(?read, "Connection active, creating a new one");
+    tracing::debug!(?data_flowing, "Connection active, creating a new one");
     let _ = new_stream_sender.send(()).await;
-
-    let read = read?;
-    if read == 0 {
-        return Err(anyhow::anyhow!("Connection closed"));
-    }
 
     let mut local_stream = TcpStream::connect(
         service_context
@@ -185,10 +141,6 @@ async fn run_proxy_connection(
             .local_service_address,
     )
     .await?;
-
-    let write_buf = &init_buf[..read];
-
-    let _ = local_stream.write(write_buf).await?;
 
     let _ = copy_bidirectional(&mut proxy_stream, &mut local_stream).await;
 
@@ -219,13 +171,45 @@ async fn get_ready_connection(
     )
     .await?;
 
-    let ack_mess = models::protocol::read_ack_message(&mut tls_stream).await?;
+    let ack_mess = models::protocol::read_proxy_message(&mut tls_stream).await?;
 
     match ack_mess {
-        models::protocol::ProxyConnectionAckMessage::Ok => Ok(tls_stream),
-        models::protocol::ProxyConnectionAckMessage::Failed => {
+        ProxyConnectionMessage::AuthOk => Ok(tls_stream),
+        ProxyConnectionMessage::AuthFailed => {
             let _ = end_service_sender.send(()).await;
             Err(anyhow::anyhow!("Stream failed auth"))
         }
+        val @ _ => {
+            tracing::error!(?val, "Got unepxtected proxy message");
+            Err(anyhow::anyhow!("Unexpected proxy message"))
+        }
     }
+}
+
+// - Reply to ping message
+// - Error out if this task doesn't see any ping message for a pre-defined period
+// - Return once got the `data` message
+async fn wailt_till_data(stream: &mut TlsStream<TcpStream>) -> anyhow::Result<()> {
+    loop {
+        let mess = tokio::time::timeout(
+            CONN_PING_TIMEOUT,
+            models::protocol::read_proxy_message(stream),
+        )
+        .await??;
+
+        match mess {
+            ProxyConnectionMessage::Ping => {
+                let _write =
+                    models::protocol::write_proxy_message(stream, ProxyConnectionMessage::Pong)
+                        .await?;
+            }
+            ProxyConnectionMessage::Data => break,
+            val @ _ => {
+                tracing::error!(?val, "Getting unexpected message");
+                return Err(anyhow::anyhow!("Unexpected message"));
+            }
+        }
+    }
+
+    Ok(())
 }
