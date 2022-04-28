@@ -1,3 +1,4 @@
+pub mod consts;
 pub mod protocol;
 
 use std::path::PathBuf;
