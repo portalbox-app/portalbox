@@ -135,6 +135,9 @@ async fn run_proxy_connection(
     tracing::debug!(?data_flowing, "Connection active, creating a new one");
     let _ = new_stream_sender.send(()).await;
 
+    // Return if there's any error with waiting for data.
+    let _data_flowing = data_flowing?;
+
     let mut local_stream = TcpStream::connect(
         service_context
             .connect_service_request
