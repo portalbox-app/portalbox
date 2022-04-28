@@ -7,10 +7,12 @@ use tokio::{
     sync::mpsc::Sender,
 };
 use tokio_rustls::{client::TlsStream, TlsConnector};
+use tokio_util::sync::CancellationToken;
 
 use crate::ConnectServiceRequest;
 
 const MAX_READY_CONNECTIONS: usize = 4;
+const REFRESH_CONN_INTERVAL: Duration = Duration::from_secs(60);
 
 #[derive(Clone)]
 struct ServiceContext {
@@ -57,6 +59,9 @@ pub async fn start(
 
 async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
     tracing::info!(?context.connect_service_request, "Starting service...");
+
+    let connections = concurrent_queue::ConcurrentQueue::bounded(MAX_READY_CONNECTIONS);
+
     let (new_stream_sender, mut new_stream_receiver) =
         tokio::sync::mpsc::channel::<()>(MAX_READY_CONNECTIONS);
     let new_stream_sender_1 = new_stream_sender.clone();
@@ -68,19 +73,28 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
             let service_context_task = context.clone();
             let new_stream_sender_task = new_stream_sender_1.clone();
             let end_service_sender = end_service_sender.clone();
+            let cancellation_token = CancellationToken::new();
+            let cancellation_token_1 = cancellation_token.clone();
 
             let connect_fut = async move {
                 let ret = run_proxy_connection(
                     service_context_task,
                     new_stream_sender_task,
                     end_service_sender,
+                    cancellation_token,
                 )
                 .await;
                 if let Err(e) = ret {
                     tracing::error!(?e, "connect_proxy error");
                 }
             };
-            tokio::spawn(connect_fut);
+
+            let _handle = tokio::spawn(connect_fut);
+
+            if connections.is_full() {
+                let _ = connections.pop();
+            }
+            let _ = connections.push(cancellation_token_1.drop_guard());
         }
     };
 
@@ -88,9 +102,19 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
         let _ = new_stream_sender.send(()).await;
     }
 
+    let refresh_connection_fut = async {
+        loop {
+            let _ = tokio::time::sleep(REFRESH_CONN_INTERVAL).await;
+            let _ = new_stream_sender.send(()).await;
+        }
+    };
+
     tokio::select! {
         _ = create_connection_fut => {
             tracing::error!("Create connection future ended unexpectedly");
+        }
+        _ = refresh_connection_fut => {
+            tracing::error!("refres_connection_fut ended unexpectedly");
         }
         _ = end_service_receiver.recv() => {
             tracing::info!("Terminating service...");
@@ -106,6 +130,7 @@ async fn run_proxy_connection(
     service_context: ServiceContext,
     new_stream_sender: Sender<()>,
     end_service_sender: Sender<()>,
+    cancellation_token: CancellationToken,
 ) -> Result<(), anyhow::Error> {
     tracing::debug!(?service_context.proxy_address, "run_proxy_connection");
     let mut backoff = ExponentialBackoff {
@@ -129,9 +154,19 @@ async fn run_proxy_connection(
         }
     };
 
-    // Wait for data to start flowing
     let mut init_buf = [0u8; 1024];
-    let read = proxy_stream.read(&mut init_buf).await;
+
+    // Wait for either cancellation or data to start flowing
+    let read = tokio::select! {
+        _ = cancellation_token.cancelled() => {
+            // The token was cancelled
+            tracing::debug!("connection cancelled");
+            return Ok(());
+        }
+        ret = proxy_stream.read(&mut init_buf) => {
+            ret
+        }
+    };
 
     // Start/error receiving data:
     // - Signal a new connection
