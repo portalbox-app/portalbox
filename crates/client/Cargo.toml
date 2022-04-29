@@ -54,7 +54,7 @@ tokio-rustls = "0.23.3"
 tokio-util = "0.7.1"
 toml = "0.5.6"
 tower = "0.4.10"
-tower-http = { version = "0.2.0", features = ["fs", "trace"] }
+tower-http = { version = "0.3.1", features = ["fs", "trace"] }
 url = { version = "2", features = ["serde"] }
 uuid = { version = "1.0.0", features = ["v4", "serde"] }
 
