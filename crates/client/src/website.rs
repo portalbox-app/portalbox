@@ -25,6 +25,8 @@ pub fn routes() -> Router {
         .route("/", get(handle_index))
         .route("/signin", get(handle_signin))
         .route("/signin", post(handle_post_signin))
+        .route("/go-online", get(handle_go_online))
+        .route("/go-online", post(handle_post_go_online))
         .route("/terminal", get(handle_terminal))
         .route("/privacy", get(handle_privacy))
         .route("/terms", get(handle_terms))
@@ -129,6 +131,54 @@ async fn handle_post_signin(
 
         let _ = cred_manager.save(&env.config).await;
     }
+
+    Ok(Redirect::to("/"))
+}
+
+async fn handle_go_online(
+    Extension(env): Extension<Environment>,
+) -> Result<Html<String>, ServerError> {
+    let render = {
+        let context = Context::new();
+        env.tera.render("go_online.html", &context)?
+    };
+    Ok(Html(render))
+}
+
+async fn handle_post_go_online(
+    Extension(env): Extension<Environment>,
+    // Form(form): Form<SignIn>,
+) -> Result<Redirect, ServerError> {
+    tracing::info!("handle handle_post_go_online");
+
+    let url = env.config.server_url_with_path("api/go-online");
+
+    let client = reqwest::Client::new();
+
+    let res = client
+        .post(url)
+        .send()
+        .await?
+        .json::<SignInResult>()
+        .await?;
+
+    tracing::info!(?res, "logged in - starting home service");
+
+    let credential = Credential::new(
+        "anonymous".to_string(),
+        res.client_access_token,
+        res.base_sub_domain,
+    );
+
+    // Request to create service on the server
+    let _ = start_all_service(&credential, &env).await;
+
+    let mut cred_manager = CredManager::load(&env.config).await.unwrap_or_default();
+    cred_manager
+        .credentials
+        .insert(env.config.server_url().into(), credential);
+
+    let _ = cred_manager.save(&env.config).await;
 
     Ok(Redirect::to("/"))
 }
