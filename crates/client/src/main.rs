@@ -6,6 +6,7 @@ use crate::{
 };
 use axum::{error_handling::HandleError, extract::Extension, http::StatusCode, Router};
 use clap::StructOpt;
+use credentials::Credential;
 use dotenv::dotenv;
 use models::AppsResult;
 use secrecy::SecretString;
@@ -146,7 +147,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
 
     if let Some(credential) = credentials.credentials.get(config.server_url().as_str()) {
         tracing::info!(server_url = ?config.server_url(), "Signing in...");
-        if let Err(e) = website::start_all_service(credential, &env).await {
+        if let Err(e) = website::start_all_service(credential.clone(), &env).await {
             tracing::error!(?e, "Error signing in");
         }
     }
@@ -324,7 +325,7 @@ async fn fetch_or_update_apps(
 pub struct Environment {
     config: Config,
     tera: Tera,
-    signed_in_base_sub_domain: Arc<Mutex<Option<String>>>,
+    signed_in_base_sub_domain: Arc<Mutex<Option<Credential>>>,
     connect_service_request_sender: tokio::sync::mpsc::Sender<ConnectServiceRequest>,
 }
 

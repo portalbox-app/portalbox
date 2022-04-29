@@ -43,19 +43,73 @@ impl CredManager {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Credential {
+#[serde(tag = "type")]
+pub enum Credential {
+    User(UserCredential),
+    Anonymous(AnonymousCredential),
+}
+
+impl Credential {
+    pub fn new_user(cred: UserCredential) -> Self {
+        Self::User(cred)
+    }
+
+    pub fn new_anonymous(cred: AnonymousCredential) -> Self {
+        Self::Anonymous(cred)
+    }
+
+    pub fn client_access_token(&self) -> &SecretString {
+        match self {
+            Credential::User(val) => &val.client_access_token,
+            Credential::Anonymous(val) => &val.client_access_token,
+        }
+    }
+
+    pub fn base_sub_domain(&self) -> &String {
+        match self {
+            Credential::User(val) => &val.base_sub_domain,
+            Credential::Anonymous(val) => &val.base_sub_domain,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserCredential {
     pub email: String,
     #[serde(serialize_with = "models::serialize_secret_string")]
     pub client_access_token: SecretString,
     pub base_sub_domain: String,
 }
 
-impl Credential {
+impl UserCredential {
     pub fn new(email: String, client_access_token: SecretString, base_sub_domain: String) -> Self {
         Self {
             email,
             client_access_token,
             base_sub_domain,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnonymousCredential {
+    pub base_sub_domain: String,
+    #[serde(serialize_with = "models::serialize_secret_string")]
+    pub client_access_token: SecretString,
+    #[serde(serialize_with = "models::serialize_secret_string")]
+    pub access_code: SecretString,
+}
+
+impl AnonymousCredential {
+    pub fn new(
+        base_sub_domain: String,
+        client_access_token: SecretString,
+        access_code: SecretString,
+    ) -> Self {
+        Self {
+            base_sub_domain,
+            client_access_token,
+            access_code,
         }
     }
 }

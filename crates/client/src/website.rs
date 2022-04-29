@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use crate::{
-    credentials::{CredManager, Credential},
+    credentials::{AnonymousCredential, CredManager, Credential, UserCredential},
     error::ServerError,
     ConnectServiceRequest, Environment,
 };
@@ -11,7 +11,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use models::{Contact, SignIn, SignInResult};
+use models::{Contact, GoOnlineResult, SignIn, SignInResult};
 use pulldown_cmark::{html, Parser};
 use secrecy::SecretString;
 use serde::Serialize;
@@ -71,18 +71,20 @@ async fn handle_index(
     };
     let services = vec![vscode, terminal];
 
-    let signed_in_home_url = {
+    let credential = {
         let guard = env.signed_in_base_sub_domain.lock().await;
-        if let Some(base_sub_domain) = &*guard {
-            Some(format!("http://{}-home.portalbox.app", base_sub_domain))
-        } else {
-            None
-        }
+        guard.clone()
     };
+
+    let signed_in_home_url = credential
+        .as_ref()
+        .map(|val| format!("http://{}-home.portalbox.app", val.base_sub_domain()));
+
     let render = {
         let mut context = Context::new();
         context.insert("services", &services);
         context.insert("signed_in_home_url", &signed_in_home_url);
+        context.insert("credential", &credential);
         env.tera.render("index.html", &context)?
     };
     Ok(Html(render))
@@ -118,10 +120,13 @@ async fn handle_post_signin(
 
     tracing::info!(?res, "logged in - starting home service");
 
-    let credential = Credential::new(form.email, res.client_access_token, res.base_sub_domain);
+    let credential = {
+        let cred = UserCredential::new(form.email, res.client_access_token, res.base_sub_domain);
+        Credential::new_user(cred)
+    };
 
     // Request to create service on the server
-    let _ = start_all_service(&credential, &env).await;
+    let _ = start_all_service(credential.clone(), &env).await;
 
     if form.remember_me {
         let mut cred_manager = CredManager::load(&env.config).await.unwrap_or_default();
@@ -147,7 +152,6 @@ async fn handle_go_online(
 
 async fn handle_post_go_online(
     Extension(env): Extension<Environment>,
-    // Form(form): Form<SignIn>,
 ) -> Result<Redirect, ServerError> {
     tracing::info!("handle handle_post_go_online");
 
@@ -159,19 +163,22 @@ async fn handle_post_go_online(
         .post(url)
         .send()
         .await?
-        .json::<SignInResult>()
+        .json::<GoOnlineResult>()
         .await?;
 
     tracing::info!(?res, "logged in - starting home service");
 
-    let credential = Credential::new(
-        "anonymous".to_string(),
-        res.client_access_token,
-        res.base_sub_domain,
-    );
+    let credential = {
+        let cred = AnonymousCredential::new(
+            res.base_sub_domain,
+            res.client_access_token,
+            res.access_code,
+        );
+        Credential::new_anonymous(cred)
+    };
 
     // Request to create service on the server
-    let _ = start_all_service(&credential, &env).await;
+    let _ = start_all_service(credential.clone(), &env).await;
 
     let mut cred_manager = CredManager::load(&env.config).await.unwrap_or_default();
     cred_manager
@@ -184,29 +191,29 @@ async fn handle_post_go_online(
 }
 
 pub async fn start_all_service(
-    credential: &Credential,
+    credential: Credential,
     env: &Environment,
 ) -> Result<(), anyhow::Error> {
     let _home = request_and_start_service(
         &env,
-        &credential.base_sub_domain,
+        credential.base_sub_domain(),
         "home",
-        credential.client_access_token.clone(),
+        credential.client_access_token().clone(),
         ([127, 0, 0, 1], env.config.local_home_service_port).into(),
     )
     .await?;
 
     let _vscode = request_and_start_service(
         &env,
-        &credential.base_sub_domain,
+        credential.base_sub_domain(),
         "vscode",
-        credential.client_access_token.clone(),
+        credential.client_access_token().clone(),
         ([127, 0, 0, 1], env.config.vscode_port).into(),
     )
     .await?;
 
     let mut signed_in_base_sub_domain = env.signed_in_base_sub_domain.lock().await;
-    *signed_in_base_sub_domain = Some(credential.base_sub_domain.clone());
+    *signed_in_base_sub_domain = Some(credential);
 
     Ok(())
 }

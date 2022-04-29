@@ -125,6 +125,15 @@ pub struct SignInResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct GoOnlineResult {
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub client_access_token: SecretString,
+    pub base_sub_domain: String,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub access_code: SecretString,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AppsRequest {
     pub os_arch: String,
 }
