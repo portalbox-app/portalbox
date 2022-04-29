@@ -47,15 +47,15 @@ pub struct Credential {
     pub email: String,
     #[serde(serialize_with = "models::serialize_secret_string")]
     pub client_access_token: SecretString,
-    pub base_hostname: String,
+    pub base_sub_domain: String,
 }
 
 impl Credential {
-    pub fn new(email: String, client_access_token: SecretString, base_hostname: String) -> Self {
+    pub fn new(email: String, client_access_token: SecretString, base_sub_domain: String) -> Self {
         Self {
             email,
             client_access_token,
-            base_hostname,
+            base_sub_domain,
         }
     }
 }

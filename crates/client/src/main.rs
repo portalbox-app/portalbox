@@ -129,7 +129,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     let env = Environment {
         config: config.clone(),
         tera,
-        signed_in_base_hostname: Arc::new(Mutex::new(None)),
+        signed_in_base_sub_domain: Arc::new(Mutex::new(None)),
         connect_service_request_sender,
     };
 
@@ -324,7 +324,7 @@ async fn fetch_or_update_apps(
 pub struct Environment {
     config: Config,
     tera: Tera,
-    signed_in_base_hostname: Arc<Mutex<Option<String>>>,
+    signed_in_base_sub_domain: Arc<Mutex<Option<String>>>,
     connect_service_request_sender: tokio::sync::mpsc::Sender<ConnectServiceRequest>,
 }
 

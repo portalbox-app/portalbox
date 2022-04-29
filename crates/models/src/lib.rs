@@ -72,7 +72,13 @@ pub struct SignIn {
     pub password: SecretString,
     #[serde(default, rename = "remember-me")]
     pub remember_me: bool,
-    pub base_hostname: Option<String>,
+    pub base_sub_domain: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SignInAccessCode {
+    pub base_sub_domain: String,
+    pub access_code: String,
 }
 
 pub fn serialize_secret_string<S>(value: &SecretString, s: S) -> Result<S::Ok, S::Error>
@@ -97,7 +103,7 @@ pub struct Contact {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceRequest {
-    pub base_hostname: String,
+    pub base_sub_domain: String,
     pub service_name: String,
     #[serde(serialize_with = "serialize_secret_string")]
     pub client_access_token: SecretString,
@@ -115,7 +121,7 @@ pub struct ServiceApproval {
 pub struct SignInResult {
     #[serde(serialize_with = "serialize_secret_string")]
     pub client_access_token: SecretString,
-    pub base_hostname: String,
+    pub base_sub_domain: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

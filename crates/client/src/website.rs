@@ -70,9 +70,9 @@ async fn handle_index(
     let services = vec![vscode, terminal];
 
     let signed_in_home_url = {
-        let guard = env.signed_in_base_hostname.lock().await;
-        if let Some(base_hostname) = &*guard {
-            Some(format!("http://{}-home.portalbox.app", base_hostname))
+        let guard = env.signed_in_base_sub_domain.lock().await;
+        if let Some(base_sub_domain) = &*guard {
+            Some(format!("http://{}-home.portalbox.app", base_sub_domain))
         } else {
             None
         }
@@ -116,7 +116,7 @@ async fn handle_post_signin(
 
     tracing::info!(?res, "logged in - starting home service");
 
-    let credential = Credential::new(form.email, res.client_access_token, res.base_hostname);
+    let credential = Credential::new(form.email, res.client_access_token, res.base_sub_domain);
 
     // Request to create service on the server
     let _ = start_all_service(&credential, &env).await;
@@ -139,7 +139,7 @@ pub async fn start_all_service(
 ) -> Result<(), anyhow::Error> {
     let _home = request_and_start_service(
         &env,
-        &credential.base_hostname,
+        &credential.base_sub_domain,
         "home",
         credential.client_access_token.clone(),
         ([127, 0, 0, 1], env.config.local_home_service_port).into(),
@@ -148,32 +148,32 @@ pub async fn start_all_service(
 
     let _vscode = request_and_start_service(
         &env,
-        &credential.base_hostname,
+        &credential.base_sub_domain,
         "vscode",
         credential.client_access_token.clone(),
         ([127, 0, 0, 1], env.config.vscode_port).into(),
     )
     .await?;
 
-    let mut signed_in_base_hostname = env.signed_in_base_hostname.lock().await;
-    *signed_in_base_hostname = Some(credential.base_hostname.clone());
+    let mut signed_in_base_sub_domain = env.signed_in_base_sub_domain.lock().await;
+    *signed_in_base_sub_domain = Some(credential.base_sub_domain.clone());
 
     Ok(())
 }
 
 async fn request_and_start_service(
     env: &Environment,
-    base_hostname: &str,
+    base_sub_domain: &str,
     service_name: &str,
     client_access_token: SecretString,
     local_service_address: SocketAddr,
 ) -> Result<(), anyhow::Error> {
-    tracing::info!(?base_hostname, ?service_name, "Requesting service");
+    tracing::info!(?base_sub_domain, ?service_name, "Requesting service");
 
     let url = env.config.server_url_with_path("api/services");
 
     let service_form = models::ServiceRequest {
-        base_hostname: base_hostname.to_string(),
+        base_sub_domain: base_sub_domain.to_string(),
         service_name: service_name.to_string(),
         client_access_token,
     };
