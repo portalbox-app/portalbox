@@ -15,6 +15,7 @@ use models::{Contact, SignIn, SignInResult};
 use pulldown_cmark::{html, Parser};
 use secrecy::SecretString;
 use serde::Serialize;
+use serde_json::json;
 use sysinfo::{System, SystemExt};
 use tera::Context;
 use tokio::{fs::File, io::AsyncReadExt};
@@ -278,11 +279,43 @@ async fn handle_about(Extension(env): Extension<Environment>) -> Result<Html<Str
     let system_info = SystemInfo::from_system(&system);
     let mem_info = MemInfo::from_system(&system);
 
+    let battery_info = {
+        let manager =
+            anyhow::Context::context(battery::Manager::new(), "Can't get battery manager")?;
+        let mut batteries = anyhow::Context::context(manager.batteries(), "Can't get batteries")?;
+        let battery = batteries.next();
+
+        match battery {
+            Some(Ok(battery)) => {
+                json!(
+                {
+                    "state": format!("{:?}", battery.state()),
+                    "percentage": format!("{:?}", battery.state_of_charge()),
+                })
+            }
+            Some(Err(e)) => {
+                json!(
+                {
+                    "state": format!("Error getting battery state: {:?}", e),
+                    "percentage": "unknown",
+                })
+            }
+            None => {
+                json!(
+                {
+                    "state": "No battery detected",
+                    "percentage": "unknown",
+                })
+            }
+        }
+    };
+
     let render = {
         let mut context = Context::new();
         context.insert("version", version);
         context.insert("system_info", &system_info);
         context.insert("mem_info", &mem_info);
+        context.insert("battery_info", &battery_info);
 
         env.tera.render("about.html", &context)?
     };
