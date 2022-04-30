@@ -94,6 +94,7 @@ async fn handle_socket(socket: WebSocket, env: Environment) {
             let send = pty_read_sender.send(data);
             if let Err(e) = send {
                 tracing::error!(?e, "Pty sending error, ending");
+                break;
             }
         }
         tracing::debug!("pty_read thread ended");
