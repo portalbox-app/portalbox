@@ -21,10 +21,10 @@ pub async fn start(
     proxy_server: SocketAddr,
     mut connect_service_request_receiver: tokio::sync::mpsc::Receiver<ConnectServiceRequest>,
 ) -> Result<(), anyhow::Error> {
-    let start_service_fut = async move {
+    let connector = {
         let mut root_cert_store = tokio_rustls::rustls::RootCertStore::empty();
-        for cert in rustls_native_certs::load_native_certs().expect("could not load platform certs")
-        {
+        let native_certs = rustls_native_certs::load_native_certs()?;
+        for cert in native_certs {
             root_cert_store
                 .add(&tokio_rustls::rustls::Certificate(cert.0))
                 .unwrap();
@@ -35,8 +35,10 @@ pub async fn start(
             .with_root_certificates(root_cert_store)
             .with_no_client_auth();
         let connector = TlsConnector::from(Arc::new(config));
-        let connector = Arc::new(connector);
+        Arc::new(connector)
+    };
 
+    let start_service_fut = async move {
         while let Some(req) = connect_service_request_receiver.recv().await {
             let service_context = ServiceContext {
                 proxy_address: proxy_server.clone(),
