@@ -86,15 +86,16 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
     for _i in 0..MAX_READY_CONNECTIONS {
         let _ = new_stream_sender.send(()).await;
     }
-
     tokio::select! {
         _ = create_connection_fut => {
             tracing::error!("Create connection future ended unexpectedly");
         }
         _ = end_service_receiver.recv() => {
-            tracing::info!("Terminating service...");
+            tracing::debug!("Terminating service...");
         }
     }
+
+    tracing::debug!("Service ended");
 
     Ok(())
 }

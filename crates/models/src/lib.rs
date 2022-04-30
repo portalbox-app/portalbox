@@ -125,7 +125,7 @@ pub struct SignInResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GoOnlineResult {
+pub struct SigninGuestResult {
     #[serde(serialize_with = "serialize_secret_string")]
     pub client_access_token: SecretString,
     pub base_sub_domain: String,

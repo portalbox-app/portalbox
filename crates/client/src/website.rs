@@ -11,7 +11,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use models::{Contact, GoOnlineResult, SignIn, SignInResult};
+use models::{Contact, SignIn, SignInResult, SigninGuestResult};
 use pulldown_cmark::{html, Parser};
 use secrecy::SecretString;
 use serde::Serialize;
@@ -25,8 +25,8 @@ pub fn routes() -> Router {
         .route("/", get(handle_index))
         .route("/signin", get(handle_signin))
         .route("/signin", post(handle_post_signin))
-        .route("/go-online", get(handle_go_online))
-        .route("/go-online", post(handle_post_go_online))
+        .route("/signin-guest", get(handle_signin_guest))
+        .route("/signin-guest", post(handle_post_signin_guest))
         .route("/terminal", get(handle_terminal))
         .route("/privacy", get(handle_privacy))
         .route("/terms", get(handle_terms))
@@ -140,22 +140,22 @@ async fn handle_post_signin(
     Ok(Redirect::to("/"))
 }
 
-async fn handle_go_online(
+async fn handle_signin_guest(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
     let render = {
         let context = Context::new();
-        env.tera.render("go_online.html", &context)?
+        env.tera.render("signin_guest.html", &context)?
     };
     Ok(Html(render))
 }
 
-async fn handle_post_go_online(
+async fn handle_post_signin_guest(
     Extension(env): Extension<Environment>,
 ) -> Result<Redirect, ServerError> {
-    tracing::info!("handle handle_post_go_online");
+    tracing::debug!("handle_post_signin_guest");
 
-    let url = env.config.server_url_with_path("api/go-online");
+    let url = env.config.server_url_with_path("api/signin-guest");
 
     let client = reqwest::Client::new();
 
@@ -163,7 +163,7 @@ async fn handle_post_go_online(
         .post(url)
         .send()
         .await?
-        .json::<GoOnlineResult>()
+        .json::<SigninGuestResult>()
         .await?;
 
     tracing::info!(?res, "logged in - starting home service");

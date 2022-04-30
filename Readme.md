@@ -1,5 +1,5 @@
 ## Introduction
-PortalBox is a suite of tools to make your dev machine web-accessible.
+PortalBox is a collection of tools to make your dev machine web-accessible.
 
 Features:
 - Self-hosted Visual Studio Code server
@@ -23,6 +23,8 @@ scoop install portalbox
 ```
 portalbox start
 ```
+
+The dashboard will be available at http://localhost:3030 by default.
 
 ## The PortalBox Client
 
