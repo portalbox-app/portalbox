@@ -46,7 +46,7 @@ impl CredManager {
 #[serde(tag = "type")]
 pub enum Credential {
     User(UserCredential),
-    Anonymous(AnonymousCredential),
+    Guest(GuestCredential),
 }
 
 impl Credential {
@@ -54,21 +54,21 @@ impl Credential {
         Self::User(cred)
     }
 
-    pub fn new_anonymous(cred: AnonymousCredential) -> Self {
-        Self::Anonymous(cred)
+    pub fn new_guest(cred: GuestCredential) -> Self {
+        Self::Guest(cred)
     }
 
     pub fn client_access_token(&self) -> &SecretString {
         match self {
             Credential::User(val) => &val.client_access_token,
-            Credential::Anonymous(val) => &val.client_access_token,
+            Credential::Guest(val) => &val.client_access_token,
         }
     }
 
     pub fn base_sub_domain(&self) -> &String {
         match self {
             Credential::User(val) => &val.base_sub_domain,
-            Credential::Anonymous(val) => &val.base_sub_domain,
+            Credential::Guest(val) => &val.base_sub_domain,
         }
     }
 }
@@ -92,7 +92,7 @@ impl UserCredential {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AnonymousCredential {
+pub struct GuestCredential {
     pub base_sub_domain: String,
     #[serde(serialize_with = "models::serialize_secret_string")]
     pub client_access_token: SecretString,
@@ -100,7 +100,7 @@ pub struct AnonymousCredential {
     pub access_code: SecretString,
 }
 
-impl AnonymousCredential {
+impl GuestCredential {
     pub fn new(
         base_sub_domain: String,
         client_access_token: SecretString,

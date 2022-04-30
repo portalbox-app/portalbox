@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use crate::{
-    credentials::{AnonymousCredential, CredManager, Credential, UserCredential},
+    credentials::{CredManager, Credential, GuestCredential, UserCredential},
     error::ServerError,
     ConnectServiceRequest, Environment,
 };
@@ -169,12 +169,12 @@ async fn handle_post_signin_guest(
     tracing::info!(?res, "logged in - starting home service");
 
     let credential = {
-        let cred = AnonymousCredential::new(
+        let cred = GuestCredential::new(
             res.base_sub_domain,
             res.client_access_token,
             res.access_code,
         );
-        Credential::new_anonymous(cred)
+        Credential::new_guest(cred)
     };
 
     // Request to create service on the server
