@@ -4,6 +4,7 @@ use backoff::{backoff::Backoff, ExponentialBackoff};
 use models::{consts::MAX_READY_CONNECTIONS, protocol::ProxyConnectionMessage};
 use tokio::{io::copy_bidirectional, net::TcpStream, sync::mpsc::Sender};
 use tokio_rustls::{client::TlsStream, TlsConnector};
+use tokio_util::sync::CancellationToken;
 
 use crate::ConnectServiceRequest;
 
@@ -59,21 +60,19 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
         tokio::sync::mpsc::channel::<()>(MAX_READY_CONNECTIONS);
     let new_stream_sender_1 = new_stream_sender.clone();
 
-    let (end_service_sender, mut end_service_receiver) = tokio::sync::mpsc::channel::<()>(1);
+    let token = CancellationToken::new();
+    let token_1 = token.clone();
 
     let create_connection_fut = async move {
         while let Some(_) = new_stream_receiver.recv().await {
             let service_context_task = context.clone();
             let new_stream_sender_task = new_stream_sender_1.clone();
-            let end_service_sender = end_service_sender.clone();
+            let token_task = token_1.clone();
 
             let connect_fut = async move {
-                let ret = run_proxy_connection(
-                    service_context_task,
-                    new_stream_sender_task,
-                    end_service_sender,
-                )
-                .await;
+                let ret =
+                    run_proxy_connection(service_context_task, new_stream_sender_task, token_task)
+                        .await;
                 if let Err(e) = ret {
                     tracing::error!(?e, "connect_proxy error");
                 }
@@ -90,7 +89,7 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
         _ = create_connection_fut => {
             tracing::error!("Create connection future ended unexpectedly");
         }
-        _ = end_service_receiver.recv() => {
+        _ = token.cancelled() => {
             tracing::debug!("Terminating service...");
         }
     }
@@ -104,7 +103,7 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
 async fn run_proxy_connection(
     service_context: ServiceContext,
     new_stream_sender: Sender<()>,
-    end_service_sender: Sender<()>,
+    token: CancellationToken,
 ) -> Result<(), anyhow::Error> {
     tracing::debug!(?service_context.proxy_address, "run_proxy_connection");
     let mut backoff = ExponentialBackoff {
@@ -115,7 +114,11 @@ async fn run_proxy_connection(
 
     // Loop until we have a ready connection
     let mut proxy_stream = loop {
-        let ret = get_ready_connection(&service_context, end_service_sender.clone()).await;
+        if token.is_cancelled() {
+            return Ok(());
+        }
+
+        let ret = get_ready_connection(&service_context, token.clone()).await;
 
         match ret {
             Ok(val) => break val,
@@ -153,7 +156,7 @@ async fn run_proxy_connection(
 
 async fn get_ready_connection(
     service_context: &ServiceContext,
-    end_service_sender: Sender<()>,
+    token: CancellationToken,
 ) -> Result<TlsStream<TcpStream>, anyhow::Error> {
     let tcp_stream = TcpStream::connect(service_context.proxy_address).await?;
     let _ = tcp_stream.set_nodelay(true);
@@ -180,7 +183,7 @@ async fn get_ready_connection(
     match ack_mess {
         ProxyConnectionMessage::AuthOk => Ok(tls_stream),
         ProxyConnectionMessage::AuthFailed => {
-            let _ = end_service_sender.send(()).await;
+            token.cancel();
             Err(anyhow::anyhow!("Stream failed auth"))
         }
         val @ _ => {
