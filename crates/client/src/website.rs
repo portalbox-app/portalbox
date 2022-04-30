@@ -77,7 +77,7 @@ async fn handle_index(
     let services = vec![vscode, terminal];
 
     let credential = {
-        let guard = env.signed_in_base_sub_domain.lock().await;
+        let guard = env.existing_credential.lock().await;
         guard.clone()
     };
 
@@ -99,11 +99,24 @@ async fn handle_index(
 async fn handle_signin(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
-    let render = {
-        let context = Context::new();
-        env.tera.render("signin.html", &context)?
+    let credential = {
+        let guard = env.existing_credential.lock().await;
+        guard.clone()
     };
-    Ok(Html(render))
+
+    if credential.is_some() {
+        let render = {
+            let context = Context::new();
+            env.tera.render("signed_in.html", &context)?
+        };
+        Ok(Html(render))
+    } else {
+        let render = {
+            let context = Context::new();
+            env.tera.render("signin.html", &context)?
+        };
+        Ok(Html(render))
+    }
 }
 
 async fn handle_post_signin(
@@ -218,8 +231,8 @@ pub async fn start_all_service(
     )
     .await?;
 
-    let mut signed_in_base_sub_domain = env.signed_in_base_sub_domain.lock().await;
-    *signed_in_base_sub_domain = Some(credential);
+    let mut cred_guard = env.existing_credential.lock().await;
+    *cred_guard = Some(credential);
 
     Ok(())
 }
