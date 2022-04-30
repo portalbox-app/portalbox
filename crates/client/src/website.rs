@@ -1,6 +1,7 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use crate::{
+    config::Config,
     credentials::{CredManager, Credential, GuestCredential, UserCredential},
     error::ServerError,
     ConnectServiceRequest, Environment,
@@ -19,6 +20,8 @@ use serde_json::json;
 use sysinfo::{System, SystemExt};
 use tera::Context;
 use tokio::{fs::File, io::AsyncReadExt};
+
+const FETCH_SERVER_NEWS_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub fn routes() -> Router {
     Router::new()
@@ -57,6 +60,8 @@ async fn handle_index(
         }
     };
 
+    let server_news = fetch_server_news(&env.config).await;
+
     tracing::debug!(?vscode_url, "handle_index - got vscode_url");
 
     let vscode = LocalService {
@@ -85,6 +90,7 @@ async fn handle_index(
         context.insert("services", &services);
         context.insert("signed_in_home_url", &signed_in_home_url);
         context.insert("credential", &credential);
+        context.insert("server_news", &server_news);
         env.tera.render("index.html", &context)?
     };
     Ok(Html(render))
@@ -428,6 +434,25 @@ fn render_content_page(
     };
 
     Ok(Html(render))
+}
+
+async fn fetch_server_news(config: &Config) -> String {
+    let ret = fetch_server_news_impl(config).await.unwrap_or_default();
+
+    ret
+}
+
+async fn fetch_server_news_impl(config: &Config) -> anyhow::Result<String> {
+    let url = config.server_url_with_path("api/server_news");
+    let client = reqwest::Client::new();
+    // let response = client.get(url).send().await?;
+
+    let resp = tokio::time::timeout(FETCH_SERVER_NEWS_TIMEOUT, client.get(url).send()).await??;
+
+    let resp = resp.error_for_status()?;
+    let ret = resp.text().await?;
+
+    Ok(ret)
 }
 
 struct ContentPage {
