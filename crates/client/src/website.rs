@@ -92,6 +92,7 @@ async fn handle_index(
         context.insert("signed_in_home_url", &signed_in_home_url);
         context.insert("credential", &credential);
         context.insert("server_news", &server_news);
+        context.insert("active_item", "dashboard");
         env.tera.render("index.html", &context)?
     };
     Ok(Html(render))
@@ -107,13 +108,15 @@ async fn handle_signin(
 
     if credential.is_some() {
         let render = {
-            let context = Context::new();
+            let mut context = Context::new();
+            context.insert("active_item", "signin");
             env.tera.render("signed_in.html", &context)?
         };
         Ok(Html(render))
     } else {
         let render = {
-            let context = Context::new();
+            let mut context = Context::new();
+            context.insert("active_item", "signin");
             env.tera.render("signin.html", &context)?
         };
         Ok(Html(render))
@@ -164,7 +167,8 @@ async fn handle_signin_guest(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
     let render = {
-        let context = Context::new();
+        let mut context = Context::new();
+        context.insert("active_item", "signin");
         env.tera.render("signin_guest.html", &context)?
     };
     Ok(Html(render))
@@ -302,7 +306,8 @@ async fn handle_contact(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
     let render = {
-        let context = Context::new();
+        let mut context = Context::new();
+        context.insert("active_item", "contact");
         env.tera.render("contact.html", &context)?
     };
     Ok(Html(render))
@@ -393,6 +398,7 @@ async fn handle_about(Extension(env): Extension<Environment>) -> Result<Html<Str
         context.insert("system_info", &system_info);
         context.insert("mem_info", &mem_info);
         context.insert("battery_info", &battery_info);
+        context.insert("active_item", "about");
 
         env.tera.render("about.html", &context)?
     };

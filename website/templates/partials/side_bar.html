@@ -1,3 +1,8 @@
+{% set active_item_class = "bg-cyan-800 text-white group flex items-center px-2 py-2 text-sm leading-6 font-medium
+rounded-md" %}
+{% set inactive_item_class = "group flex items-center px-2 py-2 text-sm leading-6 font-medium rounded-md text-cyan-100
+hover:text-white hover:bg-cyan-600" %}
+
 <!-- Static sidebar for desktop -->
 <div class="lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
     <!-- Sidebar component, swap this element with another sidebar if you like -->
@@ -13,7 +18,7 @@
             <div class="px-2 space-y-1">
                 <!-- Current: "bg-cyan-800 text-white", Default: "text-cyan-100 hover:text-white hover:bg-cyan-600" -->
                 <a href="/"
-                    class="bg-cyan-800 text-white group flex items-center px-2 py-2 text-sm leading-6 font-medium rounded-md"
+                    class="{% if active_item and active_item == 'dashboard' %} {{ active_item_class }} {% else %} {{ inactive_item_class }} {% endif %}"
                     aria-current="page">
                     <!-- Heroicon name: outline/home -->
                     <svg class="mr-4 flex-shrink-0 h-6 w-6 text-cyan-200" xmlns="http://www.w3.org/2000/svg" fill="none"
@@ -27,7 +32,7 @@
             <div class="mt-6 pt-6">
                 <div class="px-2 space-y-1">
                     <a href="/signin"
-                        class="group flex items-center px-2 py-2 text-sm leading-6 font-medium rounded-md text-cyan-100 hover:text-white hover:bg-cyan-600">
+                        class="{% if active_item and active_item == 'signin' %} {{ active_item_class }} {% else %} {{ inactive_item_class }} {% endif %}">
                         <!-- Heroicon name: outline/shield-check -->
                         <svg class="mr-4 h-6 w-6 text-cyan-200" xmlns="http://www.w3.org/2000/svg" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -38,7 +43,7 @@
                     </a>
 
                     <a href="/contact"
-                        class="group flex items-center px-2 py-2 text-sm leading-6 font-medium rounded-md text-cyan-100 hover:text-white hover:bg-cyan-600">
+                        class="{% if active_item and active_item == 'contact' %} {{ active_item_class }} {% else %} {{ inactive_item_class }} {% endif %}">
                         <svg class="mr-4 flex-shrink-0 h-6 w-6 text-cyan-200" xmlns="http://www.w3.org/2000/svg"
                             fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -48,7 +53,7 @@
                     </a>
 
                     <a href="/about"
-                        class="group flex items-center px-2 py-2 text-sm leading-6 font-medium rounded-md text-cyan-100 hover:text-white hover:bg-cyan-600">
+                        class="{% if active_item and active_item == 'about' %} {{ active_item_class }} {% else %} {{ inactive_item_class }} {% endif %}">
                         <!-- Heroicon name: outline/question-mark-circle -->
                         <svg class="mr-4 h-6 w-6 text-cyan-200" xmlns="http://www.w3.org/2000/svg" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
