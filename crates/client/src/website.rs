@@ -450,7 +450,7 @@ fn render_content_page(
     Ok(Html(render))
 }
 
-async fn fetch_server_news(config: &Config) -> String {
+pub(crate) async fn fetch_server_news(config: &Config) -> String {
     lazy_static::lazy_static! {
         static ref CACHE: tokio::sync::Mutex<TimedCache<String, String>> = {
             let ret = TimedCache::with_lifespan(60 * 60);

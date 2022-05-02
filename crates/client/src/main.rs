@@ -186,8 +186,20 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         }
     };
 
-    tracing::debug!("Checking for update...");
-    let _ = version::check(&config).await;
+    let config_1 = config.clone();
+
+    let server_news_fut = async move {
+        tracing::debug!("Pre fetch server news");
+        let _ = website::fetch_server_news(&config_1).await;
+    };
+
+    let version_check_fut = async move {
+        tracing::debug!("Checking for update...");
+        let _ = version::check(&config).await;
+    };
+
+    tokio::task::spawn(server_news_fut);
+    tokio::task::spawn(version_check_fut);
 
     tokio::select! {
         _ = server_fut => {
