@@ -12,6 +12,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use cached::{CachedAsync, TimedCache};
 use models::{Contact, SignIn, SignInResult, SigninGuestResult};
 use pulldown_cmark::{html, Parser};
 use secrecy::SecretString;
@@ -450,12 +451,30 @@ fn render_content_page(
 }
 
 async fn fetch_server_news(config: &Config) -> String {
-    let ret = fetch_server_news_impl(config).await.unwrap_or_default();
+    lazy_static::lazy_static! {
+        static ref CACHE: tokio::sync::Mutex<TimedCache<String, String>> = {
+            let ret = TimedCache::with_lifespan(60 * 60);
+            tokio::sync::Mutex::new(ret)
+        };
+    }
+
+    let mut cache = CACHE.lock().await;
+
+    let ret = cache
+        .try_get_or_set_with("server_news".into(), || async move {
+            let ret = fetch_server_news_impl(&config).await;
+            ret
+        })
+        .await
+        .cloned()
+        .unwrap_or_default();
 
     ret
 }
 
 async fn fetch_server_news_impl(config: &Config) -> anyhow::Result<String> {
+    tracing::debug!("fetch_server_news_impl");
+
     let url = config.server_url_with_path("api/server_news");
     let client = reqwest::Client::new();
     // let response = client.get(url).send().await?;

@@ -7,7 +7,7 @@ use clap::{Args, Parser, Subcommand};
 #[clap(about = "The PortalBox Client", long_about = None)]
 pub struct Cli {
     #[clap(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
     /// Custom config file location
     #[clap(long, global = true)]
     pub config_file: Option<PathBuf>,

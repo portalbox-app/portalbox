@@ -51,13 +51,17 @@ async fn main() -> Result<(), anyhow::Error> {
 
     config.ensure_all_dirs().await?;
 
-    match args.command {
-        Commands::Start => start(config).await,
-        Commands::Config => config.show().await,
-        Commands::Reset(reset) => {
-            let ret = reset::reset(reset, config).await;
-            ret
+    if let Some(command) = args.command {
+        match command {
+            Commands::Start => start(config).await,
+            Commands::Config => config.show().await,
+            Commands::Reset(reset) => {
+                let ret = reset::reset(reset, config).await;
+                ret
+            }
         }
+    } else {
+        start(config).await
     }
 }
 
