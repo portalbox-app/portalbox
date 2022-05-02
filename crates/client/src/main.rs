@@ -164,7 +164,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         .layer(Extension(env));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config_1.local_home_service_port));
-    tracing::info!(?addr, "Dasboard available");
+    tracing::info!("Dasboard available at http://localhost:{}", config_1.local_home_service_port);
     let server_fut = async move {
         axum::Server::bind(&addr)
             .serve(app.into_make_service())

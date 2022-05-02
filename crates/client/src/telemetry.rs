@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 
 use opentelemetry_otlp::WithExportConfig;
@@ -20,12 +21,29 @@ pub fn init_subscriber(config: &Config) {
     };
 
     let telemetry = {
+        let trace_config = {
+            let default_resource = opentelemetry::sdk::Resource::default();
+            let custom_resource =
+                opentelemetry::sdk::Resource::new(vec![opentelemetry::KeyValue::new(
+                    "service.name",
+                    "portalbox-client",
+                )]);
+            let final_res = default_resource.merge(&custom_resource);
+
+            opentelemetry::sdk::trace::config().with_resource(final_res)
+        };
+
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
+            .with_trace_config(trace_config)
             .with_exporter(
                 opentelemetry_otlp::new_exporter()
-                    .tonic()
-                    .with_endpoint("https://otlp.portalbox.app:4317"),
+                    .http()
+                    .with_endpoint("https://otel.portalbox.app")
+                    .with_headers(HashMap::from([(
+                        "uptrace-dsn".to_string(),
+                        "https://DWHNwrp7KdGRJjR24SZDAQ@uptrace.dev/333".to_string(),
+                    )])),
             )
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap();

@@ -66,12 +66,10 @@ opentelemetry = { version = "0.17.0", features = [
     "metrics",
     "serialize",
 ] }
-opentelemetry-otlp = { version = "0.10.0", features = [
-    "tonic",
-    "tls",
-    "tls-roots",
+opentelemetry-otlp = { version = "0.10.0", default-features = false, features = [
+    "http-proto",
+    "reqwest-client",
 ] }
-tonic = "0.6.2"
 tracing = "0.1"
 tracing-opentelemetry = "0.17.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter"] }

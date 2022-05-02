@@ -8,7 +8,7 @@ pub async fn check(config: &Config) -> Result<(), anyhow::Error> {
     let latest = get_latest_version(current_version.clone(), config).await?;
 
     if latest > current_version {
-        tracing::info!(
+        tracing::warn!(
             "Update available, current version = {}, latest version = {}",
             VERSION,
             latest
