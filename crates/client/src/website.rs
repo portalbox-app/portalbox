@@ -127,7 +127,7 @@ async fn handle_post_signin(
     Extension(env): Extension<Environment>,
     Form(form): Form<SignIn>,
 ) -> Result<Redirect, ServerError> {
-    tracing::info!(?form, "handle signin");
+    tracing::debug!(?form, "handle signin");
 
     let url = env.config.server_url_with_path("api/signin");
 
@@ -141,7 +141,7 @@ async fn handle_post_signin(
         .json::<SignInResult>()
         .await?;
 
-    tracing::info!(?res, "logged in - starting home service");
+    tracing::debug!(?res, "logged in - starting home service");
 
     let credential = {
         let cred = UserCredential::new(form.email, res.client_access_token, res.base_sub_domain);
@@ -189,8 +189,6 @@ async fn handle_post_signin_guest(
         .await?
         .json::<SigninGuestResult>()
         .await?;
-
-    tracing::info!(?res, "logged in - starting home service");
 
     let credential = {
         let cred = GuestCredential::new(
@@ -249,7 +247,7 @@ async fn request_and_start_service(
     client_access_token: SecretString,
     local_service_address: SocketAddr,
 ) -> Result<(), anyhow::Error> {
-    tracing::info!(?base_sub_domain, ?service_name, "Requesting service");
+    tracing::debug!(?base_sub_domain, ?service_name, "Requesting service");
 
     let url = env.config.server_url_with_path("api/services");
 
@@ -268,7 +266,7 @@ async fn request_and_start_service(
         .json::<models::ServiceApproval>()
         .await?;
 
-    tracing::info!(?service.hostname, "Service approved");
+    tracing::debug!(?service.hostname, "Service approved");
 
     let req = ConnectServiceRequest {
         portalbox_inner_token: service.service_access_token,
@@ -408,7 +406,6 @@ async fn handle_about(Extension(env): Extension<Environment>) -> Result<Html<Str
 async fn handle_privacy(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
-    tracing::info!("serving privacy page");
     let content = get_markdown_content("privacy", env.clone()).await?;
 
     render_content_page(content, env)

@@ -90,7 +90,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     }
 
     let config_2 = config.clone();
-    tracing::info!("VSCode starting...");
+    tracing::debug!("VSCode starting...");
     let vscode_handle = duct::cmd!(
         vscode_full_cmd,
         "--host",
@@ -140,7 +140,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
 
     let credentials = match CredManager::load(&config).await {
         Ok(val) => {
-            tracing::info!("Credentials loaded");
+            tracing::info!("Credentials loaded... signing in");
             val
         }
         Err(_e) => {
@@ -150,7 +150,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     };
 
     if let Some(credential) = credentials.credentials.get(config.server_url().as_str()) {
-        tracing::info!(server_url = ?config.server_url(), "Signing in...");
+        tracing::debug!(server_url = ?config.server_url(), "Signing in...");
         if let Err(e) = website::start_all_service(credential.clone(), &env).await {
             tracing::error!(?e, "Error signing in");
         }
@@ -164,7 +164,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         .layer(Extension(env));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config_1.local_home_service_port));
-    tracing::info!(?addr, "Listening");
+    tracing::info!(?addr, "Dasboard available");
     let server_fut = async move {
         axum::Server::bind(&addr)
             .serve(app.into_make_service())
@@ -203,13 +203,13 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
 
     tokio::select! {
         _ = server_fut => {
-            tracing::info!("server_fut ended");
+            tracing::debug!("server_fut ended");
         }
         _ = proxy_client_fut => {
-            tracing::info!("proxy client ended");
+            tracing::debug!("proxy client ended");
         }
         _ = signal::ctrl_c() => {
-            tracing::info!("Ctrl-C received, terminating...");
+            tracing::debug!("Ctrl-C received, terminating...");
         }
     }
 
@@ -217,7 +217,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
     if let Err(e) = vscode_killed {
         tracing::error!(?e, "Failed to kill the vscode process");
     }
-    tracing::info!("Terminated");
+    tracing::debug!("Terminated");
     Ok(())
 }
 
