@@ -461,13 +461,12 @@ pub(crate) async fn fetch_server_news(config: &Config) -> String {
     let mut cache = CACHE.lock().await;
 
     let ret = cache
-        .try_get_or_set_with("server_news".into(), || async move {
-            let ret = fetch_server_news_impl(&config).await;
+        .get_or_set_with("server_news".into(), || async move {
+            let ret = fetch_server_news_impl(&config).await.unwrap_or_default();
             ret
         })
         .await
-        .cloned()
-        .unwrap_or_default();
+        .clone();
 
     ret
 }
