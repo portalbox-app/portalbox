@@ -21,6 +21,8 @@ pub enum Commands {
     Config,
     /// Reset data
     Reset(Reset),
+    /// Show current version
+    Version,
 }
 
 #[derive(Debug, Args)]

@@ -59,6 +59,13 @@ async fn main() -> Result<(), anyhow::Error> {
                 let ret = reset::reset(reset, config).await;
                 ret
             }
+            Commands::Version => {
+                // println!("Build Timestamp: {}", env!("VERGEN_GIT_SHA"));
+                // println!("git semver: {}", env!("VERGEN_GIT_BRANCH"));
+                let git_sha = &env!("VERGEN_GIT_SHA")[..8];
+                println!("portalbox {} ({})", version::VERSION, git_sha);
+                Ok(())
+            }
         }
     } else {
         start(config).await
@@ -164,7 +171,10 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         .layer(Extension(env));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config_1.local_home_service_port));
-    tracing::info!("Dasboard available at http://localhost:{}", config_1.local_home_service_port);
+    tracing::info!(
+        "Dasboard available at http://localhost:{}",
+        config_1.local_home_service_port
+    );
     let server_fut = async move {
         axum::Server::bind(&addr)
             .serve(app.into_make_service())
