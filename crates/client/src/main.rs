@@ -60,9 +60,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 ret
             }
             Commands::Version => {
-                // println!("Build Timestamp: {}", env!("VERGEN_GIT_SHA"));
-                // println!("git semver: {}", env!("VERGEN_GIT_BRANCH"));
-                let git_sha = &env!("VERGEN_GIT_SHA")[..8];
+                let git_sha = &env!("VERGEN_GIT_SHA")[..7];
                 println!("portalbox {} ({})", version::VERSION, git_sha);
                 Ok(())
             }
