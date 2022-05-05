@@ -220,6 +220,7 @@ pub async fn start_all_service(
         &env,
         credential.base_sub_domain(),
         "home",
+        false,
         credential.client_access_token().clone(),
         ([127, 0, 0, 1], env.config.local_home_service_port).into(),
     )
@@ -229,6 +230,7 @@ pub async fn start_all_service(
         &env,
         credential.base_sub_domain(),
         "vscode",
+        false,
         credential.client_access_token().clone(),
         ([127, 0, 0, 1], env.config.vscode_port).into(),
     )
@@ -244,6 +246,7 @@ async fn request_and_start_service(
     env: &Environment,
     base_sub_domain: &str,
     service_name: &str,
+    tls_proxy: bool,
     client_access_token: SecretString,
     local_service_address: SocketAddr,
 ) -> Result<(), anyhow::Error> {
@@ -254,6 +257,7 @@ async fn request_and_start_service(
     let service_form = models::ServiceRequest {
         base_sub_domain: base_sub_domain.to_string(),
         service_name: service_name.to_string(),
+        tls_proxy,
         client_access_token,
     };
 

@@ -105,6 +105,7 @@ pub struct Contact {
 pub struct ServiceRequest {
     pub base_sub_domain: String,
     pub service_name: String,
+    pub tls_proxy: bool,
     #[serde(serialize_with = "serialize_secret_string")]
     pub client_access_token: SecretString,
 }
