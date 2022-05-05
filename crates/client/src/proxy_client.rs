@@ -175,7 +175,6 @@ async fn get_ready_connection(
             .connect_service_request
             .portalbox_inner_token
             .clone(),
-        &service_context.connect_service_request.hostname,
         &mut tls_stream,
     )
     .await?;
