@@ -6,7 +6,7 @@ use tokio::{io::copy_bidirectional, net::TcpStream, sync::mpsc::Sender};
 use tokio_rustls::{client::TlsStream, TlsConnector};
 use tokio_util::sync::CancellationToken;
 
-use crate::ConnectServiceRequest;
+use crate::{utils::get_tls_connector, ConnectServiceRequest};
 
 const CONN_PING_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -21,22 +21,8 @@ pub async fn start(
     proxy_server: SocketAddr,
     mut connect_service_request_receiver: tokio::sync::mpsc::Receiver<ConnectServiceRequest>,
 ) -> Result<(), anyhow::Error> {
-    let connector = {
-        let mut root_cert_store = tokio_rustls::rustls::RootCertStore::empty();
-        let native_certs = rustls_native_certs::load_native_certs()?;
-        for cert in native_certs {
-            root_cert_store
-                .add(&tokio_rustls::rustls::Certificate(cert.0))
-                .unwrap();
-        }
-
-        let config = tokio_rustls::rustls::ClientConfig::builder()
-            .with_safe_defaults()
-            .with_root_certificates(root_cert_store)
-            .with_no_client_auth();
-        let connector = TlsConnector::from(Arc::new(config));
-        Arc::new(connector)
-    };
+    let connector = get_tls_connector()?;
+    let connector = Arc::new(connector);
 
     let start_service_fut = async move {
         while let Some(req) = connect_service_request_receiver.recv().await {
