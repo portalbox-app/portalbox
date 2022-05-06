@@ -236,6 +236,16 @@ pub async fn start_all_service(
     )
     .await?;
 
+    let _ssh = request_and_start_service(
+        &env,
+        credential.base_sub_domain(),
+        "ssh",
+        true,
+        credential.client_access_token().clone(),
+        ([127, 0, 0, 1], 22).into(),
+    )
+    .await?;
+
     let mut cred_guard = env.existing_credential.lock().await;
     *cred_guard = Some(credential);
 
