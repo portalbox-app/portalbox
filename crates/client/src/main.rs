@@ -25,7 +25,6 @@ mod api;
 mod cli;
 mod client_instance;
 mod config;
-mod utils;
 mod credentials;
 mod downloader;
 mod error;
@@ -33,6 +32,7 @@ mod proxy_client;
 mod reset;
 mod telemetry;
 mod tls_client;
+mod utils;
 mod version;
 mod website;
 
@@ -74,7 +74,10 @@ async fn main() -> Result<(), anyhow::Error> {
 }
 
 async fn start(config: Config) -> Result<(), anyhow::Error> {
+    let config = Arc::new(config);
     let config_1 = config.clone();
+    let config_2 = config.clone();
+    let config_3 = config.clone();
 
     tracing::info!("Starting...");
     tracing::debug!(?config, runtime_dir = ?config.runtime_dir());
@@ -97,7 +100,6 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         return Err(anyhow::anyhow!("Can't find vscode"));
     }
 
-    let config_2 = config.clone();
     tracing::debug!("VSCode starting...");
     let vscode_handle = duct::cmd!(
         vscode_full_cmd,
@@ -106,11 +108,11 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         "--port",
         config.vscode_port.to_string(),
         "--server-data-dir",
-        apps.vscode.server_data_dir(&config_2.apps_data_dir()),
+        apps.vscode.server_data_dir(&config_1.apps_data_dir()),
         "--user-data-dir",
-        apps.vscode.user_data_dir(&config_2.apps_data_dir()),
+        apps.vscode.user_data_dir(&config_1.apps_data_dir()),
         "--extensions-dir",
-        apps.vscode.extensions_dir(&config_2.apps_data_dir()),
+        apps.vscode.extensions_dir(&config_1.apps_data_dir()),
         "--without-connection-token"
     )
     .stderr_to_stdout()
@@ -140,13 +142,13 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         tokio::sync::mpsc::channel(10);
 
     let env = Environment {
-        config: config.clone(),
+        config,
         tera,
         existing_credential: Arc::new(Mutex::new(None)),
         connect_service_request_sender,
     };
 
-    let credentials = match CredManager::load(&config).await {
+    let credentials = match CredManager::load(&env.config).await {
         Ok(val) => {
             tracing::info!("Credentials loaded... signing in");
             val
@@ -157,13 +159,21 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         }
     };
 
-    if let Some(credential) = credentials.credentials.get(config.server_url().as_str()) {
-        tracing::debug!(server_url = ?config.server_url(), "Signing in...");
+    if let Some(credential) = credentials
+        .credentials
+        .get(env.config.server_url().as_str())
+    {
+        tracing::debug!(server_url = ?env.config.server_url(), "Signing in...");
         if let Err(e) = website::start_all_service(credential.clone(), &env).await {
             tracing::error!(?e, "Error signing in");
         }
     }
 
+    let addr = SocketAddr::from(([0, 0, 0, 0], env.config.local_home_service_port));
+    tracing::info!(
+        "Dasboard available at http://localhost:{}",
+        env.config.local_home_service_port
+    );
     let app = Router::new()
         .merge(website::routes())
         .nest("/api", api::routes())
@@ -171,11 +181,6 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         .layer(TraceLayer::new_for_http())
         .layer(Extension(env));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], config_1.local_home_service_port));
-    tracing::info!(
-        "Dasboard available at http://localhost:{}",
-        config_1.local_home_service_port
-    );
     let server_fut = async move {
         axum::Server::bind(&addr)
             .serve(app.into_make_service())
@@ -191,22 +196,21 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
             .expect("Unable to resolve domain")
             .collect();
 
-        let ret = proxy_client::start(proxy_server[0], connect_service_request_receiver).await;
+        let ret =
+            proxy_client::start(config_1, proxy_server[0], connect_service_request_receiver).await;
         if let Err(e) = ret {
             tracing::error!(?e, "proxy server error");
         }
     };
 
-    let config_1 = config.clone();
-
     let server_news_fut = async move {
         tracing::debug!("Pre fetch server news");
-        let _ = website::fetch_server_news(&config_1).await;
+        let _ = website::fetch_server_news(&config_2).await;
     };
 
     let version_check_fut = async move {
         tracing::debug!("Checking for update...");
-        let _ = version::check(&config).await;
+        let _ = version::check(&config_3).await;
     };
 
     tokio::task::spawn(server_news_fut);
@@ -350,7 +354,7 @@ async fn fetch_or_update_apps(
 
 #[derive(Clone)]
 pub struct Environment {
-    config: Config,
+    config: Arc<Config>,
     tera: Tera,
     existing_credential: Arc<Mutex<Option<Credential>>>,
     connect_service_request_sender: tokio::sync::mpsc::Sender<ConnectServiceRequest>,
@@ -360,7 +364,5 @@ pub struct Environment {
 pub struct ConnectServiceRequest {
     #[serde(serialize_with = "models::serialize_secret_string")]
     pub portalbox_inner_token: SecretString,
-    pub hostname: String,
-    pub local_service_name: String,
-    pub local_service_address: SocketAddr,
+    pub base_sub_domain: String,
 }

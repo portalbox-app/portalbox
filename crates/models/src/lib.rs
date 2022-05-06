@@ -104,15 +104,13 @@ pub struct Contact {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceRequest {
     pub base_sub_domain: String,
-    pub service_name: String,
-    pub tls_proxy: bool,
     #[serde(serialize_with = "serialize_secret_string")]
     pub client_access_token: SecretString,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceApproval {
-    pub hostname: String,
+    pub base_sub_domain: String,
     pub service_name: String,
     #[serde(serialize_with = "serialize_secret_string")]
     pub service_access_token: SecretString,

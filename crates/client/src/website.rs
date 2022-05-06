@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, time::Duration};
+use std::time::Duration;
 
 use crate::{
     config::Config,
@@ -216,33 +216,10 @@ pub async fn start_all_service(
     credential: Credential,
     env: &Environment,
 ) -> Result<(), anyhow::Error> {
-    let _home = request_and_start_service(
+    let _ = request_and_start_service(
         &env,
         credential.base_sub_domain(),
-        "home",
-        false,
         credential.client_access_token().clone(),
-        ([127, 0, 0, 1], env.config.local_home_service_port).into(),
-    )
-    .await?;
-
-    let _vscode = request_and_start_service(
-        &env,
-        credential.base_sub_domain(),
-        "vscode",
-        false,
-        credential.client_access_token().clone(),
-        ([127, 0, 0, 1], env.config.vscode_port).into(),
-    )
-    .await?;
-
-    let _ssh = request_and_start_service(
-        &env,
-        credential.base_sub_domain(),
-        "ssh",
-        true,
-        credential.client_access_token().clone(),
-        ([127, 0, 0, 1], 22).into(),
     )
     .await?;
 
@@ -255,19 +232,14 @@ pub async fn start_all_service(
 async fn request_and_start_service(
     env: &Environment,
     base_sub_domain: &str,
-    service_name: &str,
-    tls_proxy: bool,
     client_access_token: SecretString,
-    local_service_address: SocketAddr,
 ) -> Result<(), anyhow::Error> {
-    tracing::debug!(?base_sub_domain, ?service_name, "Requesting service");
+    tracing::debug!(?base_sub_domain, "Requesting service");
 
     let url = env.config.server_url_with_path("api/services");
 
     let service_form = models::ServiceRequest {
         base_sub_domain: base_sub_domain.to_string(),
-        service_name: service_name.to_string(),
-        tls_proxy,
         client_access_token,
     };
 
@@ -280,13 +252,11 @@ async fn request_and_start_service(
         .json::<models::ServiceApproval>()
         .await?;
 
-    tracing::debug!(?service.hostname, "Service approved");
+    tracing::debug!(?service.base_sub_domain, "Service approved");
 
     let req = ConnectServiceRequest {
         portalbox_inner_token: service.service_access_token,
-        hostname: service.hostname,
-        local_service_name: service.service_name,
-        local_service_address,
+        base_sub_domain: service.base_sub_domain,
     };
 
     let _ = env

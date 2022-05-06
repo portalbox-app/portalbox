@@ -1,23 +1,30 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+    time::Duration,
+};
 
 use backoff::{backoff::Backoff, ExponentialBackoff};
 use models::{consts::MAX_READY_CONNECTIONS, protocol::ProxyConnectionMessage};
+use secrecy::SecretString;
 use tokio::{io::copy_bidirectional, net::TcpStream, sync::mpsc::Sender};
 use tokio_rustls::{client::TlsStream, TlsConnector};
 use tokio_util::sync::CancellationToken;
 
-use crate::{utils::get_tls_connector, ConnectServiceRequest};
+use crate::{config::Config, utils::get_tls_connector, ConnectServiceRequest};
 
 const CONN_PING_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 struct ServiceContext {
     proxy_address: SocketAddr,
-    connect_service_request: ConnectServiceRequest,
+    portalbox_inner_token: SecretString,
+    base_sub_domain: String,
     tls_connector: Arc<TlsConnector>,
 }
 
 pub async fn start(
+    config: Arc<Config>,
     proxy_server: SocketAddr,
     mut connect_service_request_receiver: tokio::sync::mpsc::Receiver<ConnectServiceRequest>,
 ) -> Result<(), anyhow::Error> {
@@ -28,11 +35,12 @@ pub async fn start(
         while let Some(req) = connect_service_request_receiver.recv().await {
             let service_context = ServiceContext {
                 proxy_address: proxy_server.clone(),
-                connect_service_request: req,
+                portalbox_inner_token: req.portalbox_inner_token,
+                base_sub_domain: req.base_sub_domain,
                 tls_connector: connector.clone(),
             };
 
-            tokio::task::spawn(start_service(service_context));
+            tokio::task::spawn(start_service(service_context, config.clone()));
         }
     };
 
@@ -41,8 +49,8 @@ pub async fn start(
     Ok(())
 }
 
-async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
-    tracing::info!(?context.connect_service_request, "Starting service...");
+async fn start_service(context: ServiceContext, config: Arc<Config>) -> Result<(), anyhow::Error> {
+    tracing::info!(?context.base_sub_domain, "Starting service...");
 
     let (new_stream_sender, mut new_stream_receiver) =
         tokio::sync::mpsc::channel::<()>(MAX_READY_CONNECTIONS);
@@ -56,11 +64,16 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
             let service_context_task = context.clone();
             let new_stream_sender_task = new_stream_sender_1.clone();
             let token_task = token_1.clone();
+            let config = config.clone();
 
             let connect_fut = async move {
-                let ret =
-                    run_proxy_connection(service_context_task, new_stream_sender_task, token_task)
-                        .await;
+                let ret = run_proxy_connection(
+                    service_context_task,
+                    config,
+                    new_stream_sender_task,
+                    token_task,
+                )
+                .await;
                 if let Err(e) = ret {
                     tracing::error!(?e, "connect_proxy error");
                 }
@@ -90,6 +103,7 @@ async fn start_service(context: ServiceContext) -> Result<(), anyhow::Error> {
 // After: always kick off a new connection
 async fn run_proxy_connection(
     service_context: ServiceContext,
+    config: Arc<Config>,
     new_stream_sender: Sender<()>,
     token: CancellationToken,
 ) -> Result<(), anyhow::Error> {
@@ -119,23 +133,27 @@ async fn run_proxy_connection(
         }
     };
 
-    let data_flowing = wailt_till_data(&mut proxy_stream).await;
+    let data_type = wailt_till_data(&mut proxy_stream).await;
 
     // Start/error receiving data:
     // - Signal a new connection
     // - Continue this task to end
-    tracing::debug!(?data_flowing, "Connection active, creating a new one");
+    tracing::debug!(?data_type, "Connection active, creating a new one");
     let _ = new_stream_sender.send(()).await;
 
     // Return if there's any error with waiting for data.
-    let _data_flowing = data_flowing?;
+    let data_type = data_type?;
 
-    let mut local_stream = TcpStream::connect(
-        service_context
-            .connect_service_request
-            .local_service_address,
-    )
-    .await?;
+    let dest_port = match data_type {
+        ProxyConnectionMessage::DataHome => config.local_home_service_port,
+        ProxyConnectionMessage::DataVscode => config.vscode_port,
+        ProxyConnectionMessage::DataSsh => 22,
+        _ => return Err(anyhow::anyhow!("Invalid data_type")),
+    };
+
+    let local_service_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), dest_port);
+
+    let mut local_stream = TcpStream::connect(local_service_address).await?;
 
     let _ = copy_bidirectional(&mut proxy_stream, &mut local_stream).await;
 
@@ -149,7 +167,7 @@ async fn get_ready_connection(
     let tcp_stream = TcpStream::connect(service_context.proxy_address).await?;
     let _ = tcp_stream.set_nodelay(true);
 
-    let domain = service_context.connect_service_request.hostname.as_str();
+    let domain = service_context.base_sub_domain.as_str();
 
     let mut tls_stream = service_context
         .tls_connector
@@ -157,10 +175,7 @@ async fn get_ready_connection(
         .await?;
 
     let _ = models::protocol::write_hello_message(
-        service_context
-            .connect_service_request
-            .portalbox_inner_token
-            .clone(),
+        service_context.portalbox_inner_token.clone(),
         &mut tls_stream,
     )
     .await?;
@@ -183,8 +198,10 @@ async fn get_ready_connection(
 // - Reply to ping message
 // - Error out if this task doesn't see any ping message for a pre-defined period
 // - Return once got the `data` message
-async fn wailt_till_data(stream: &mut TlsStream<TcpStream>) -> anyhow::Result<()> {
-    loop {
+async fn wailt_till_data(
+    stream: &mut TlsStream<TcpStream>,
+) -> anyhow::Result<ProxyConnectionMessage> {
+    let ret = loop {
         let mess = tokio::time::timeout(
             CONN_PING_TIMEOUT,
             models::protocol::read_proxy_message(stream),
@@ -197,13 +214,15 @@ async fn wailt_till_data(stream: &mut TlsStream<TcpStream>) -> anyhow::Result<()
                     models::protocol::write_proxy_message(stream, ProxyConnectionMessage::Pong)
                         .await?;
             }
-            ProxyConnectionMessage::Data => break,
+            val @ (ProxyConnectionMessage::DataHome
+            | ProxyConnectionMessage::DataVscode
+            | ProxyConnectionMessage::DataSsh) => break val,
             val @ _ => {
                 tracing::error!(?val, "Getting unexpected message");
                 return Err(anyhow::anyhow!("Unexpected message"));
             }
         }
-    }
+    };
 
-    Ok(())
+    Ok(ret)
 }

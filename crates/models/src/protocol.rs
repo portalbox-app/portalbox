@@ -19,7 +19,9 @@ pub enum ProxyConnectionMessage {
     AuthFailed = 0x2222u16,
     Ping = 0x3333,
     Pong = 0x4444,
-    Data = 0x5555,
+    DataHome = 0x5555,
+    DataVscode = 0x5556,
+    DataSsh = 0x5557,
 }
 
 pub async fn write_hello_message<S: AsyncWrite + Unpin>(
