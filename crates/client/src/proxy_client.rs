@@ -11,12 +11,12 @@ use tokio::{io::copy_bidirectional, net::TcpStream, sync::mpsc::Sender};
 use tokio_rustls::{client::TlsStream, TlsConnector};
 use tokio_util::sync::CancellationToken;
 
-use crate::{config::Config, utils::get_tls_connector, ConnectServiceRequest};
+use crate::{config::Config, utils::get_tls_connector, ProxyRequest};
 
 const CONN_PING_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
-struct ServiceContext {
+struct ProxyContext {
     proxy_address: SocketAddr,
     portalbox_inner_token: SecretString,
     base_sub_domain: String,
@@ -24,17 +24,17 @@ struct ServiceContext {
     tls_connector: Arc<TlsConnector>,
 }
 
-pub async fn start(
+pub async fn start_deamon(
     config: Arc<Config>,
     proxy_server: SocketAddr,
-    mut connect_service_request_receiver: tokio::sync::mpsc::Receiver<ConnectServiceRequest>,
+    mut connect_service_request_receiver: tokio::sync::mpsc::Receiver<ProxyRequest>,
 ) -> Result<(), anyhow::Error> {
     let connector = get_tls_connector()?;
     let connector = Arc::new(connector);
 
-    let start_service_fut = async move {
+    let start_proxy_fut = async move {
         while let Some(req) = connect_service_request_receiver.recv().await {
-            let service_context = ServiceContext {
+            let proxy_context = ProxyContext {
                 proxy_address: proxy_server.clone(),
                 portalbox_inner_token: req.portalbox_inner_token,
                 base_sub_domain: req.base_sub_domain,
@@ -42,17 +42,17 @@ pub async fn start(
                 tls_connector: connector.clone(),
             };
 
-            tokio::task::spawn(start_service(service_context, config.clone()));
+            tokio::task::spawn(start_proxy(proxy_context, config.clone()));
         }
     };
 
-    let _ = start_service_fut.await;
+    let _ = start_proxy_fut.await;
 
     Ok(())
 }
 
-async fn start_service(context: ServiceContext, config: Arc<Config>) -> Result<(), anyhow::Error> {
-    tracing::info!(?context.base_sub_domain, "Starting service...");
+async fn start_proxy(context: ProxyContext, config: Arc<Config>) -> Result<(), anyhow::Error> {
+    tracing::info!(?context.base_sub_domain, "Starting proxy...");
 
     let (new_stream_sender, mut new_stream_receiver) =
         tokio::sync::mpsc::channel::<()>(MAX_READY_CONNECTIONS);
@@ -63,14 +63,14 @@ async fn start_service(context: ServiceContext, config: Arc<Config>) -> Result<(
 
     let create_connection_fut = async move {
         while let Some(_) = new_stream_receiver.recv().await {
-            let service_context_task = context.clone();
+            let proxy_context_task = context.clone();
             let new_stream_sender_task = new_stream_sender_1.clone();
             let token_task = token_1.clone();
             let config = config.clone();
 
             let connect_fut = async move {
                 let ret = run_proxy_connection(
-                    service_context_task,
+                    proxy_context_task,
                     config,
                     new_stream_sender_task,
                     token_task,
@@ -93,23 +93,23 @@ async fn start_service(context: ServiceContext, config: Arc<Config>) -> Result<(
             tracing::error!("Create connection future ended unexpectedly");
         }
         _ = token.cancelled() => {
-            tracing::debug!("Terminating service...");
+            tracing::debug!("Terminating proxy...");
         }
     }
 
-    tracing::debug!("Service ended");
+    tracing::debug!("Proxy ended");
 
     Ok(())
 }
 
 // After: always kick off a new connection
 async fn run_proxy_connection(
-    service_context: ServiceContext,
+    proxy_context: ProxyContext,
     config: Arc<Config>,
     new_stream_sender: Sender<()>,
     token: CancellationToken,
 ) -> Result<(), anyhow::Error> {
-    tracing::debug!(?service_context.proxy_address, "run_proxy_connection");
+    tracing::debug!(?proxy_context.proxy_address, "run_proxy_connection");
     let mut backoff = ExponentialBackoff {
         max_interval: Duration::from_secs(4),
         max_elapsed_time: None,
@@ -122,7 +122,7 @@ async fn run_proxy_connection(
             return Ok(());
         }
 
-        let ret = get_ready_connection(&service_context, token.clone()).await;
+        let ret = get_ready_connection(&proxy_context, token.clone()).await;
 
         match ret {
             Ok(val) => break val,
@@ -163,20 +163,20 @@ async fn run_proxy_connection(
 }
 
 async fn get_ready_connection(
-    service_context: &ServiceContext,
+    proxy_context: &ProxyContext,
     token: CancellationToken,
 ) -> Result<TlsStream<TcpStream>, anyhow::Error> {
-    let tcp_stream = TcpStream::connect(service_context.proxy_address).await?;
+    let tcp_stream = TcpStream::connect(proxy_context.proxy_address).await?;
     let _ = tcp_stream.set_nodelay(true);
 
-    let domain = service_context.hostname.as_str().try_into()?;
-    let mut tls_stream = service_context
+    let domain = proxy_context.hostname.as_str().try_into()?;
+    let mut tls_stream = proxy_context
         .tls_connector
         .connect(domain, tcp_stream)
         .await?;
 
     let _ = models::protocol::write_hello_message(
-        service_context.portalbox_inner_token.clone(),
+        proxy_context.portalbox_inner_token.clone(),
         &mut tls_stream,
     )
     .await?;

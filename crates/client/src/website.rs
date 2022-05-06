@@ -4,7 +4,7 @@ use crate::{
     config::Config,
     credentials::{CredManager, Credential, GuestCredential, UserCredential},
     error::ServerError,
-    ConnectServiceRequest, Environment,
+    Environment, ProxyRequest,
 };
 use axum::{
     extract::{Extension, Form, Host},
@@ -149,7 +149,7 @@ async fn handle_post_signin(
     };
 
     // Request to create service on the server
-    let _ = start_all_service(credential.clone(), &env).await;
+    let _ = start_proxy_service(credential.clone(), &env).await;
 
     if form.remember_me {
         let mut cred_manager = CredManager::load(&env.config).await.unwrap_or_default();
@@ -200,7 +200,7 @@ async fn handle_post_signin_guest(
     };
 
     // Request to create service on the server
-    let _ = start_all_service(credential.clone(), &env).await;
+    let _ = start_proxy_service(credential.clone(), &env).await;
 
     let mut cred_manager = CredManager::load(&env.config).await.unwrap_or_default();
     cred_manager
@@ -212,11 +212,11 @@ async fn handle_post_signin_guest(
     Ok(Redirect::to("/"))
 }
 
-pub async fn start_all_service(
+pub async fn start_proxy_service(
     credential: Credential,
     env: &Environment,
 ) -> Result<(), anyhow::Error> {
-    let _ = request_and_start_service(
+    let _ = request_access_and_start_proxy_service(
         &env,
         credential.base_sub_domain(),
         credential.client_access_token().clone(),
@@ -229,7 +229,7 @@ pub async fn start_all_service(
     Ok(())
 }
 
-async fn request_and_start_service(
+async fn request_access_and_start_proxy_service(
     env: &Environment,
     base_sub_domain: &str,
     client_access_token: SecretString,
@@ -254,14 +254,14 @@ async fn request_and_start_service(
 
     tracing::debug!(?service.base_sub_domain, "Service approved");
 
-    let req = ConnectServiceRequest {
+    let req = ProxyRequest {
         portalbox_inner_token: service.service_access_token,
         base_sub_domain: service.base_sub_domain,
         hostname: service.hostname,
     };
 
     let _ = env
-        .connect_service_request_sender
+        .proxy_request_sender
         .send(req)
         .await
         .map_err(|_e| anyhow::anyhow!("Send error"))?;

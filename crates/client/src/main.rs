@@ -12,10 +12,7 @@ use models::AppsResult;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::{
-    net::{SocketAddr, ToSocketAddrs},
-    time::Duration,
-};
+use std::{net::SocketAddr, time::Duration};
 use tera::Tera;
 use tokio::signal;
 use tokio::sync::Mutex;
@@ -138,14 +135,14 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         let dir_glob = format!("{}/**/*.html", templates_dir.display());
         Tera::new(&dir_glob).unwrap()
     };
-    let (connect_service_request_sender, connect_service_request_receiver) =
+    let (proxy_request_sender, connect_service_request_receiver) =
         tokio::sync::mpsc::channel(10);
 
     let env = Environment {
         config,
         tera,
         existing_credential: Arc::new(Mutex::new(None)),
-        connect_service_request_sender,
+        proxy_request_sender,
     };
 
     let credentials = match CredManager::load(&env.config).await {
@@ -164,7 +161,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         .get(env.config.server_url().as_str())
     {
         tracing::debug!(server_url = ?env.config.server_url(), "Signing in...");
-        if let Err(e) = website::start_all_service(credential.clone(), &env).await {
+        if let Err(e) = website::start_proxy_service(credential.clone(), &env).await {
             tracing::error!(?e, "Error signing in");
         }
     }
@@ -188,18 +185,20 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
             .unwrap();
     };
 
-    let proxy_client_fut = async move {
+    let proxy_client_fut = {
         let server_proxy_url = config_1.server_proxy_url();
-        tracing::debug!(?server_proxy_url, "server details");
-        let proxy_server: Vec<_> = server_proxy_url
-            .to_socket_addrs()
-            .expect("Unable to resolve domain")
-            .collect();
+        tracing::debug!(?server_proxy_url, "proxy_client_fut");
+        let mut sock_addrs = tokio::net::lookup_host(server_proxy_url).await?;
+        let first = sock_addrs
+            .next()
+            .ok_or(anyhow::anyhow!("Failed to resolve proxy server"))?;
 
-        let ret =
-            proxy_client::start(config_1, proxy_server[0], connect_service_request_receiver).await;
-        if let Err(e) = ret {
-            tracing::error!(?e, "proxy server error");
+        async move {
+            let ret =
+                proxy_client::start_deamon(config_1, first, connect_service_request_receiver).await;
+            if let Err(e) = ret {
+                tracing::error!(?e, "proxy server error");
+            }
         }
     };
 
@@ -357,11 +356,11 @@ pub struct Environment {
     config: Arc<Config>,
     tera: Tera,
     existing_credential: Arc<Mutex<Option<Credential>>>,
-    connect_service_request_sender: tokio::sync::mpsc::Sender<ConnectServiceRequest>,
+    proxy_request_sender: tokio::sync::mpsc::Sender<ProxyRequest>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ConnectServiceRequest {
+pub struct ProxyRequest {
     #[serde(serialize_with = "models::serialize_secret_string")]
     pub portalbox_inner_token: SecretString,
     pub base_sub_domain: String,
