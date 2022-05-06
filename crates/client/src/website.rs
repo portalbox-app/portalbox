@@ -257,6 +257,7 @@ async fn request_and_start_service(
     let req = ConnectServiceRequest {
         portalbox_inner_token: service.service_access_token,
         base_sub_domain: service.base_sub_domain,
+        hostname: service.hostname,
     };
 
     let _ = env

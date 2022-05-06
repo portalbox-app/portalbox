@@ -20,6 +20,7 @@ struct ServiceContext {
     proxy_address: SocketAddr,
     portalbox_inner_token: SecretString,
     base_sub_domain: String,
+    hostname: String,
     tls_connector: Arc<TlsConnector>,
 }
 
@@ -37,6 +38,7 @@ pub async fn start(
                 proxy_address: proxy_server.clone(),
                 portalbox_inner_token: req.portalbox_inner_token,
                 base_sub_domain: req.base_sub_domain,
+                hostname: req.hostname,
                 tls_connector: connector.clone(),
             };
 
@@ -167,11 +169,10 @@ async fn get_ready_connection(
     let tcp_stream = TcpStream::connect(service_context.proxy_address).await?;
     let _ = tcp_stream.set_nodelay(true);
 
-    let domain = service_context.base_sub_domain.as_str();
-
+    let domain = service_context.hostname.as_str().try_into()?;
     let mut tls_stream = service_context
         .tls_connector
-        .connect(domain.try_into()?, tcp_stream)
+        .connect(domain, tcp_stream)
         .await?;
 
     let _ = models::protocol::write_hello_message(

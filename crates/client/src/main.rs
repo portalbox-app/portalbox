@@ -365,4 +365,5 @@ pub struct ConnectServiceRequest {
     #[serde(serialize_with = "models::serialize_secret_string")]
     pub portalbox_inner_token: SecretString,
     pub base_sub_domain: String,
+    pub hostname: String,
 }
