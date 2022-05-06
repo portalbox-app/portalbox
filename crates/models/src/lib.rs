@@ -111,7 +111,6 @@ pub struct ServiceRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceApproval {
     pub base_sub_domain: String,
-    pub service_name: String,
     #[serde(serialize_with = "serialize_secret_string")]
     pub service_access_token: SecretString,
 }
