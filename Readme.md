@@ -7,6 +7,9 @@ Features:
 - Reverse proxy to make everything accessible online
 - SSH jump host
 
+## Why
+![why](website/meme.jpg "Why")
+
 ## Installation
 - Linux/Mac
 ```
