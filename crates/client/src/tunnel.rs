@@ -7,7 +7,7 @@ const SSH_TLS_PORT: u16 = 22857;
 pub async fn connect(host: &str) -> anyhow::Result<()> {
     let tls_connector = get_tls_connector()?;
 
-    let host_port = format!("{host}:{SSH_TLS_PORT}");
+    let host_port = format!("{host}-ssh.portalbox.app:{SSH_TLS_PORT}");
 
     let mut socket_addrs = tokio::net::lookup_host(host_port).await?;
     let first = socket_addrs
@@ -17,10 +17,10 @@ pub async fn connect(host: &str) -> anyhow::Result<()> {
     let tcp_stream = TcpStream::connect(&first).await?;
     let _ = tcp_stream.set_nodelay(true);
 
-    let domain = host;
+    let domain = format!("{host}-ssh.portalbox.app");
 
     let tls_stream = tls_connector
-        .connect(domain.try_into()?, tcp_stream)
+        .connect(domain.as_str().try_into()?, tcp_stream)
         .await?;
 
     let (mut read, mut write) = tokio::io::split(tls_stream);
