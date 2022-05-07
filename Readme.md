@@ -5,15 +5,16 @@ Features:
 - Self-hosted Visual Studio Code server
 - Web terminal
 - Reverse proxy to make everything accessible online
+- SSH jump host
 
 ## Installation
-On Linux/Mac
+- Linux/Mac
 ```
 brew tap portalbox-app/tap
 brew install portalbox
 ```
 
-On Windows
+- Windows
 ```
 scoop bucket add portalbox https://github.com/portalbox-app/scoop-bucket
 scoop install portalbox
