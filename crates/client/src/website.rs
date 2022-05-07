@@ -75,7 +75,12 @@ async fn handle_index(
         url: "/terminal".to_string(),
         icon_url: "/terminal_icon.png".to_string(),
     };
-    let services = vec![vscode, terminal];
+    let ssh = LocalService {
+        name: "SSH".to_string(),
+        url: "https://github.com/portalbox-app/portalbox#ssh-jump-host".to_string(),
+        icon_url: "/terminal_icon.png".to_string(),
+    };
+    let services = vec![vscode, terminal, ssh];
 
     let credential = {
         let guard = env.existing_credential.lock().await;
