@@ -89,7 +89,7 @@ async fn handle_index(
 
     let signed_in_home_url = credential
         .as_ref()
-        .map(|val| format!("http://{}-home.portalbox.app", val.base_sub_domain()));
+        .map(|val| format!("https://{}-home.portalbox.app", val.base_sub_domain()));
 
     let render = {
         let mut context = Context::new();
@@ -115,7 +115,7 @@ async fn handle_signin(
         let render = {
             let mut context = Context::new();
             context.insert("active_item", "signin");
-            env.tera.render("signed_in.html", &context)?
+            env.tera.render("already_signed_in.html", &context)?
         };
         Ok(Html(render))
     } else {
@@ -171,12 +171,26 @@ async fn handle_post_signin(
 async fn handle_signin_guest(
     Extension(env): Extension<Environment>,
 ) -> Result<Html<String>, ServerError> {
-    let render = {
-        let mut context = Context::new();
-        context.insert("active_item", "signin-guest");
-        env.tera.render("signin_guest.html", &context)?
+    let credential = {
+        let guard = env.existing_credential.lock().await;
+        guard.clone()
     };
-    Ok(Html(render))
+
+    if credential.is_some() {
+        let render = {
+            let mut context = Context::new();
+            context.insert("active_item", "signin-guest");
+            env.tera.render("already_signed_in.html", &context)?
+        };
+        Ok(Html(render))
+    } else {
+        let render = {
+            let mut context = Context::new();
+            context.insert("active_item", "signin-guest");
+            env.tera.render("signin_guest.html", &context)?
+        };
+        Ok(Html(render))
+    }
 }
 
 async fn handle_post_signin_guest(
