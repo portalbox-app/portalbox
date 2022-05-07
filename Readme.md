@@ -29,15 +29,15 @@ The dashboard will be available at http://localhost:3030 by default.
 
 
 ## SSH Jump Host
-Once signed in, SSH would be available using the built-in jump host
+Once signed in, SSH would be available using the built-in jump host. To SSH into your dev machine from another machine:
 
 -  With the `portalbox` client
 ```
-ssh -o ProxyCommand="portalbox tunnel {BASE_SUB_DOMAIN}" {USER}@{HOSTNAME}
+ssh -o ProxyCommand="portalbox tunnel {BASE_SUB_DOMAIN}" {USER}@{DEVBOX}
 ```
 - With `openssh s_client`
 ```
-ssh -o ProxyCommand="openssl s_client -quiet -connect {BASE_SUB_DOMAIN}-ssh.portalbox.app:22857 -servername {BASE_SUB_DOMAIN}-ssh.portalbox.app" {USER}@{HOSTNAME}
+ssh -o ProxyCommand="openssl s_client -quiet -connect {BASE_SUB_DOMAIN}-ssh.portalbox.app:22857 -servername {BASE_SUB_DOMAIN}-ssh.portalbox.app" {USER}@{DEVBOX}
 ```
 
 The above commands are compatible with VSCode remote development.
