@@ -149,7 +149,7 @@ async fn run_proxy_connection(
     let dest_port = match data_type {
         ProxyConnectionMessage::DataHome => config.local_home_service_port,
         ProxyConnectionMessage::DataVscode => config.vscode_port,
-        ProxyConnectionMessage::DataSsh => 22,
+        ProxyConnectionMessage::DataSsh => config.ssh_port,
         _ => return Err(anyhow::anyhow!("Invalid data_type")),
     };
 

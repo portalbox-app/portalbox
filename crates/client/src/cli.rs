@@ -17,7 +17,7 @@ pub struct Cli {
 pub enum Commands {
     /// Start the portalbox client
     Start,
-    /// Create a TLS connection to host and redir to stdin/out
+    /// Create a tunnel usable by ssh ProxyCommand
     Tunnel { host: String },
     /// Show current config
     Config,
