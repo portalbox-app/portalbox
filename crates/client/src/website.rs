@@ -173,7 +173,7 @@ async fn handle_signin_guest(
 ) -> Result<Html<String>, ServerError> {
     let render = {
         let mut context = Context::new();
-        context.insert("active_item", "signin");
+        context.insert("active_item", "signin-guest");
         env.tera.render("signin_guest.html", &context)?
     };
     Ok(Html(render))
