@@ -28,7 +28,7 @@ mod error;
 mod proxy_client;
 mod reset;
 mod telemetry;
-mod tls_client;
+mod tunnel;
 mod utils;
 mod version;
 mod website;
@@ -53,7 +53,7 @@ async fn main() -> Result<(), anyhow::Error> {
     if let Some(command) = args.command {
         match command {
             Commands::Start => start(config).await,
-            Commands::Tls { host } => tls_client::connect(&host).await,
+            Commands::Tunnel { host } => tunnel::connect(&host).await,
             Commands::Config => config.show().await,
             Commands::Reset(reset) => {
                 let ret = reset::reset(reset, config).await;

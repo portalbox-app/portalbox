@@ -18,7 +18,7 @@ pub enum Commands {
     /// Start the portalbox client
     Start,
     /// Create a TLS connection to host and redir to stdin/out
-    Tls { host: String },
+    Tunnel { host: String },
     /// Show current config
     Config,
     /// Reset data
