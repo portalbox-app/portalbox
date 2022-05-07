@@ -1,5 +1,5 @@
 ## Introduction
-PortalBox is a collection of tools to make your dev machine web-accessible.
+PortalBox is a collection of tools to make remote accessing your dev machine easy.
 
 Features:
 - Self-hosted Visual Studio Code server
