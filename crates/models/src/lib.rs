@@ -1,11 +1,14 @@
 pub mod consts;
 pub mod protocol;
+pub mod utils;
 
 use std::path::PathBuf;
 
-use secrecy::{ExposeSecret, SecretString};
+pub use crate::utils::serialize_secret_string;
+
+use secrecy::SecretString;
 use semver::Version;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,12 +84,20 @@ pub struct SignInAccessCode {
     pub access_code: String,
 }
 
-pub fn serialize_secret_string<S>(value: &SecretString, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let s_val = value.expose_secret();
-    s.serialize_str(s_val.as_str())
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SignInResult {
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub client_access_token: SecretString,
+    pub base_sub_domain: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SigninGuestResult {
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub client_access_token: SecretString,
+    pub base_sub_domain: String,
+    #[serde(serialize_with = "serialize_secret_string")]
+    pub access_code: SecretString,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -117,45 +128,8 @@ pub struct ServiceApproval {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SignInResult {
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub client_access_token: SecretString,
-    pub base_sub_domain: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SigninGuestResult {
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub client_access_token: SecretString,
-    pub base_sub_domain: String,
-    #[serde(serialize_with = "serialize_secret_string")]
-    pub access_code: SecretString,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct AppsRequest {
     pub os_arch: String,
-}
-
-pub fn get_os() -> &'static str {
-    let os = std::env::consts::OS;
-    os
-}
-
-pub fn get_arch() -> &'static str {
-    let arch = match std::env::consts::ARCH {
-        val if val == "x86_64" => "x64",
-        val if val == "aarch64" => "arm64",
-        val => val,
-    };
-    arch
-}
-
-pub fn get_os_arch() -> String {
-    let os = get_os();
-    let arch = get_arch();
-
-    format!("{os}-{arch}")
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -232,7 +206,7 @@ pub struct ClientVersionResponse {
 
 #[cfg(test)]
 mod tests {
-    use crate::get_os_arch;
+    use crate::utils::get_os_arch;
 
     #[test]
     fn get_out_platform_arch() {

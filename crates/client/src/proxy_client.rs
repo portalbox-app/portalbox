@@ -27,13 +27,13 @@ struct ProxyContext {
 pub async fn start_deamon(
     config: Arc<Config>,
     proxy_server: SocketAddr,
-    mut connect_service_request_receiver: tokio::sync::mpsc::Receiver<ProxyRequest>,
+    mut proxy_request_receiver: tokio::sync::mpsc::Receiver<ProxyRequest>,
 ) -> Result<(), anyhow::Error> {
     let connector = get_tls_connector()?;
     let connector = Arc::new(connector);
 
     let start_proxy_fut = async move {
-        while let Some(req) = connect_service_request_receiver.recv().await {
+        while let Some(req) = proxy_request_receiver.recv().await {
             let proxy_context = ProxyContext {
                 proxy_address: proxy_server.clone(),
                 portalbox_inner_token: req.portalbox_inner_token,

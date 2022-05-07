@@ -135,8 +135,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
         let dir_glob = format!("{}/**/*.html", templates_dir.display());
         Tera::new(&dir_glob).unwrap()
     };
-    let (proxy_request_sender, connect_service_request_receiver) =
-        tokio::sync::mpsc::channel(10);
+    let (proxy_request_sender, proxy_request_receiver) = tokio::sync::mpsc::channel(10);
 
     let env = Environment {
         config,
@@ -194,8 +193,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
             .ok_or(anyhow::anyhow!("Failed to resolve proxy server"))?;
 
         async move {
-            let ret =
-                proxy_client::start_deamon(config_1, first, connect_service_request_receiver).await;
+            let ret = proxy_client::start_deamon(config_1, first, proxy_request_receiver).await;
             if let Err(e) = ret {
                 tracing::error!(?e, "proxy server error");
             }
@@ -282,7 +280,7 @@ async fn fetch_or_update_apps(
     config: &Config,
     current_vscode_version: Option<semver::Version>,
 ) -> Result<AppsResult, anyhow::Error> {
-    let os_arch = models::get_os_arch();
+    let os_arch = models::utils::get_os_arch();
     let url = config.server_url_with_path("api/apps");
     tracing::debug!(%url, ?os_arch, "Getting apps");
 
